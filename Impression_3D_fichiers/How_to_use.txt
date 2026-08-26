@@ -1,0 +1,3 @@
+Le dossier Impression_3D_fichiers contient les fichiers .f3d et .stl nécessaires à l'impression 3D du système de piston pour les seringues à air utilisées dans le projet du séminaire FISA A3.
+Fichiers .f3d = Ce sont les objets 3D éditables depuis le logiciel Autodesk Fusion utilisé par la filiaire FISA Généraliste.
+Fichiers .stl = Ce sont les fichiers 3D exploitables par les imprimantes 3D du Lab'CESI de chaque campus qui imprimeront les objets matériels utilisables pour le montage final de la grue.
