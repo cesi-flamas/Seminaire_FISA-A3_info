@@ -68,6 +68,14 @@ stop** des deux côtés.
 | carte → IHM | `OK 120` | consigne appliquée |
 | carte → IHM | `ERR abc` | ligne reçue invalide, ignorée |
 
+L'IHM n'émet qu'une position toutes les 50 ms, même si le curseur bouge en
+continu. Ce n'est pas une limitation arbitraire : à 9600 bauds, envoyer les
+positions sans limitation sature le tampon de réception de la carte, qui perd
+alors une commande sur deux. Mesuré sur carte : 51 positions à 50 ms sont
+reçues sans perte, les 151 positions d'un balayage envoyé d'un bloc ne le sont
+pas. Ne descendez pas en dessous de 50 ms sans augmenter la vitesse de la
+liaison des deux côtés.
+
 Le débattement est limité à **15–165°** dans le sketch comme dans l'IHM : en
 deçà et au delà, la plupart des servomoteurs arrivent en butée mécanique et
 forcent. Si vous modifiez ces bornes, modifiez-les **aux deux endroits**

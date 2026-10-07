@@ -11,10 +11,14 @@ namespace ServoMotorControl
         private const int AngleMin = 15;
         private const int AngleMax = 165;
 
-        // Un Arduino Uno redémarre quand le port série est ouvert (impulsion sur
-        // DTR par le driver USB). Le bootloader occupe ensuite la carte pendant
-        // ~1,5 s : tout ce qui est envoyé pendant ce temps est perdu. On bloque
-        // donc les envois jusqu'à la fin de ce délai.
+        // Un Arduino Uno redémarre à l'ouverture du port lorsque la ligne DTR
+        // est activée ; le bootloader occupe alors la carte environ 1,5 s et
+        // tout ce qui est envoyé pendant ce temps est perdu. DtrEnable reste
+        // donc à false, ce qui suffit à éviter le redémarrage sur une Uno
+        // officielle (vérifié sur carte). Cette marge est conservée pour les
+        // deux cas qu'elle ne couvre pas : les adaptateurs USB-série de cartes
+        // clones (CH340) qui redémarrent la carte quoi qu'il arrive, et une
+        // carte encore en cours de démarrage au moment de la connexion.
         private static readonly TimeSpan BootloaderDelay = TimeSpan.FromSeconds(2);
 
         // Le slider déclenche ValueChanged à chaque pixel de déplacement, soit
