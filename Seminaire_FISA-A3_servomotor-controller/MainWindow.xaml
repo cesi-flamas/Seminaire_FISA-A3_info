@@ -35,14 +35,20 @@
         <ItemsControl x:Name="channelsItemsControl" Grid.Row="3">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Grid Margin="0,5">
+                    <Grid Margin="0,8">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="165"/>
+                            <ColumnDefinition Width="200"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="55"/>
                         </Grid.ColumnDefinitions>
 
-                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center"/>
+                        <!-- Le mouvement de grue d'abord, le câblage en dessous :
+                             l'opérateur raisonne en « lever » ou « orienter »,
+                             pas en numéro de broche. -->
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Role}" FontWeight="Bold" FontSize="14"/>
+                            <TextBlock Text="{Binding Detail}" FontSize="10" Foreground="#777777" TextWrapping="Wrap"/>
+                        </StackPanel>
 
                         <!-- Les bornes viennent de la voie : elles sont alignées
                              sur l'écrêtage appliqué par la carte. -->

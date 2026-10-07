@@ -62,7 +62,17 @@ La liaison série est configurée à **9600 bauds, 8 bits, sans parité, 1 bit d
 stop** des deux côtés.
 
 Chaque servomoteur, donc chaque seringue, est une **voie** numérotée à partir
-de 1.
+de 1. Les voies portent le nom du mouvement de grue qu'elles commandent :
+
+| Voie | Broche | Mouvement | Sens |
+|---|---|---|---|
+| 1 | 9 | **Orientation** | pivotement de la flèche, gauche ↔ droite |
+| 2 | 10 | **Levage** | montée et descente de la charge, haut ↕ bas |
+
+Si les deux servomoteurs sont câblés dans l'autre sens, échangez les deux
+lignes de `ServoDefinitions` dans [MainWindow.xaml.cs](./Seminaire_FISA-A3_servomotor-controller/MainWindow.xaml.cs)
+et le commentaire correspondant dans le sketch : il n'y a rien d'autre à
+modifier, ni dans le code, ni dans l'interface.
 
 | Sens | Message | Signification |
 |---|---|---|
@@ -82,7 +92,7 @@ Il est fixé à **2** et se change à deux endroits, qui doivent rester cohéren
 | Fichier | Déclaration |
 |---|---|
 | [Arduino_servomotor_controller.ino](./Arduino_servomotor_controller.ino) | `SERVO_COUNT` et `SERVO_PINS` |
-| [MainWindow.xaml.cs](./Seminaire_FISA-A3_servomotor-controller/MainWindow.xaml.cs) | `ServoPins` |
+| [MainWindow.xaml.cs](./Seminaire_FISA-A3_servomotor-controller/MainWindow.xaml.cs) | `ServoDefinitions` (broche, nom du mouvement, sens) |
 
 L'IHM construit automatiquement un curseur par voie : il n'y a pas de XAML à
 retoucher. La bibliothèque `Servo` gère jusqu'à douze servomoteurs sur une Uno,

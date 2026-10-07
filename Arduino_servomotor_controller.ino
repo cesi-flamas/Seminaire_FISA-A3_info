@@ -26,6 +26,12 @@
 // fournir : l'alimentation externe 5-6 V, 2 A au minimum et davantage si l'on
 // ajoute des voies, n'est pas optionnelle, et sa masse doit etre reliee a
 // celle de la carte.
+// Affectation des voies de la grue. L'ordre fixe le numero de voie : la
+// premiere broche du tableau est la voie 1. Il doit correspondre a
+// ServoDefinitions dans MainWindow.xaml.cs, qui porte les memes roles.
+//
+//   voie 1, broche  9 : ORIENTATION - pivotement de la fleche, gauche <-> droite
+//   voie 2, broche 10 : LEVAGE      - montee et descente de la charge, haut <-> bas
 const byte SERVO_COUNT = 2;
 const byte SERVO_PINS[SERVO_COUNT] = { 9, 10 };
 

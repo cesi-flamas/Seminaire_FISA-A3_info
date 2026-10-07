@@ -4,9 +4,9 @@ using System.Runtime.CompilerServices;
 namespace ServoMotorControl
 {
     /// <summary>
-    /// Une voie de commande : un servomoteur, donc une seringue de la grue.
+    /// Une voie de commande : un servomoteur, donc un mouvement de la grue.
     /// L'IHM construit un curseur par voie à partir de cette classe, ce qui
-    /// évite d'avoir à retoucher le XAML quand le nombre de vérins change.
+    /// évite d'avoir à retoucher le XAML quand les vérins changent.
     /// </summary>
     public class ServoChannel : INotifyPropertyChanged
     {
@@ -17,19 +17,32 @@ namespace ServoMotorControl
 
         private double _angle = AngleInit;
 
-        public ServoChannel(int number, int pin)
+        public ServoChannel(int number, int pin, string role, string movement)
         {
             Number = number;
             Pin = pin;
+            Role = role;
+            Movement = movement;
         }
 
         /// <summary>Numéro de voie tel qu'attendu par la carte, à partir de 1.</summary>
         public int Number { get; }
 
-        /// <summary>Broche de la carte, pour information à l'écran.</summary>
+        /// <summary>Broche de la carte, utile au câblage.</summary>
         public int Pin { get; }
 
-        public string Label => $"Servomoteur {Number} (broche {Pin})";
+        /// <summary>
+        /// Mouvement de grue piloté par cette voie, dans le vocabulaire du
+        /// métier : « Orientation » pour le pivotement de la flèche,
+        /// « Levage » pour la montée et la descente de la charge.
+        /// </summary>
+        public string Role { get; }
+
+        /// <summary>Sens du mouvement, en clair, pour lever toute ambiguïté.</summary>
+        public string Movement { get; }
+
+        /// <summary>Ligne secondaire affichée sous le nom du mouvement.</summary>
+        public string Detail => $"{Movement}  ·  voie {Number}, broche {Pin}";
 
         // Exposées en propriétés d'instance : le XAML ne sait pas se lier
         // directement à des constantes.

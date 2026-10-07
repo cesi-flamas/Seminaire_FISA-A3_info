@@ -8,10 +8,18 @@ namespace ServoMotorControl
 {
     public partial class MainWindow : Window
     {
-        // Doit correspondre à SERVO_COUNT / SERVO_PINS dans le sketch Arduino :
-        // une voie par seringue de la grue. Ajouter ou retirer une entrée ici
-        // et dans le sketch suffit à changer le nombre de vérins pilotés.
-        private static readonly int[] ServoPins = { 9, 10 };
+        // Affectation des voies de la grue. L'ordre de ce tableau fixe le
+        // numéro de voie envoyé à la carte — première ligne = voie 1 — et doit
+        // correspondre à SERVO_COUNT / SERVO_PINS dans le sketch Arduino.
+        //
+        // Si les deux servomoteurs sont câblés dans l'autre sens, il suffit
+        // d'échanger ces deux lignes : rien d'autre n'est à toucher, ni ici ni
+        // dans le XAML.
+        private static readonly (int Pin, string Role, string Movement)[] ServoDefinitions =
+        {
+            (9,  "Orientation", "pivotement de la flèche, gauche ↔ droite"),
+            (10, "Levage",      "montée et descente de la charge, haut ↕ bas"),
+        };
 
         // Un Arduino Uno redémarre à l'ouverture du port lorsque la ligne DTR
         // est activée ; le bootloader occupe alors la carte environ 1,5 s et
@@ -45,8 +53,11 @@ namespace ServoMotorControl
         {
             InitializeComponent();
 
-            for (int i = 0; i < ServoPins.Length; i++)
-                Channels.Add(new ServoChannel(i + 1, ServoPins[i]));
+            for (int i = 0; i < ServoDefinitions.Length; i++)
+            {
+                (int pin, string role, string movement) = ServoDefinitions[i];
+                Channels.Add(new ServoChannel(i + 1, pin, role, movement));
+            }
 
             channelsItemsControl.ItemsSource = Channels;
 
