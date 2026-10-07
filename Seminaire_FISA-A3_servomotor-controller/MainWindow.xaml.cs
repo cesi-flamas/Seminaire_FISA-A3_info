@@ -76,11 +76,11 @@ namespace ServoMotorControl
                 {
                     angle2 = angles.First(); // Récupére la 1ère valeur récupèrer au cours du déplacement du slider
                     _serialPort.WriteLine(angle2.ToString()); // Envoie l'angle récupèrer
-                    Thread.Sleep(30); // Mets en Pause le thread pendant 30ms pour soulager le servo moteur
+                    Thread.Sleep(15); // Mets en Pause le thread pendant 30ms pour soulager le servo moteur
                     angles.RemoveAt(0); // Enleve la 1ère valeur envoyée
                 } else
                 {
-                    Thread.Sleep(150); // Mets en Pause le Thread pendant 150ms pour éviter de surcharger le système
+                    Thread.Sleep(50); // Mets en Pause le Thread pendant 150ms pour éviter de surcharger le système
                 }
                 state = Thread.CurrentThread.IsAlive; // Récupère l'état du Thread
                 }
