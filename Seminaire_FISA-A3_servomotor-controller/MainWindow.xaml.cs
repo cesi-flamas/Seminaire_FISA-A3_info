@@ -11,7 +11,7 @@ namespace ServoMotorControl
         {
             InitializeComponent();
             LoadComPorts();
-            AddHandler(KeyDownEvent, Window_Arrow_Key, RoutingStrategies.Tunnel);
+            AddHandler(KeyDownEvent, Window_Arrow_Key);
         }
 
         private void Window_Arrow_Key(object? sender, KeyEventArgs e)
