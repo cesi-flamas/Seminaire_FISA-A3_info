@@ -5,7 +5,7 @@ namespace ServoMotorControl
 {
     public partial class MainWindow : Window
     {
-        public SerialPort _serialPort;
+        public SerialPort? _serialPort;
 
         public MainWindow()
         {
@@ -22,35 +22,35 @@ namespace ServoMotorControl
 
         private void ConnectButton_Click(object sender, RoutedEventArgs e)
         {
+            // Cas 1 : on est connecté -> on ferme et on s'arrête là.
             if (_serialPort != null && _serialPort.IsOpen)
             {
                 _serialPort.Close();
+                _serialPort = null;
                 connectButton.Content = "Se connecter";
                 MessageBox.Show("Déconnecté du port série.");
+                return;
             }
-            else
-            {
-                if (comPortComboBox.SelectedItem == null)
-                {
-                    MessageBox.Show("Veuillez sélectionner un port COM.");
-                    return;
-                }
 
-                if (comPortComboBox.SelectedItem != null)
-                {
-                    string portName = comPortComboBox.SelectedItem.ToString();
-                }
-                _serialPort = new SerialPort("COM6", 9600, Parity.None, 8, StopBits.One);
-                try
-                {
-                    _serialPort.Open();
-                    connectButton.Content = "Déconnecter";
-                    MessageBox.Show($"Connecté à COM6.");
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Erreur de connexion: {ex.Message}");
-                }
+            // Cas 2 : on est déconnecté -> on récupère le port choisi dans la liste.
+            string? portName = comPortComboBox.SelectedItem?.ToString();
+            if (string.IsNullOrEmpty(portName))
+            {
+                MessageBox.Show("Veuillez sélectionner un port COM.");
+                return;
+            }
+
+            _serialPort = new SerialPort(portName, 9600, Parity.None, 8, StopBits.One);
+            try
+            {
+                _serialPort.Open();
+                connectButton.Content = "Déconnecter";
+                MessageBox.Show($"Connecté à {portName}.");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erreur de connexion: {ex.Message}");
+                _serialPort = null;
             }
         }
 
