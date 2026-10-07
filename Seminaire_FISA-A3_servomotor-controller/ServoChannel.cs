@@ -46,10 +46,11 @@ namespace ServoMotorControl
 
         private double _angle = AngleInit;
 
-        public ServoChannel(int number, int pin, string role, string movement, IEnumerable<ServoPosition> positions)
+        public ServoChannel(int number, int[] pins, bool mirrored, string role, string movement, IEnumerable<ServoPosition> positions)
         {
             Number = number;
-            Pin = pin;
+            Pins = pins;
+            Mirrored = mirrored;
             Role = role;
             Movement = movement;
 
@@ -61,8 +62,19 @@ namespace ServoMotorControl
         /// <summary>Numéro de voie tel qu'attendu par la carte, à partir de 1.</summary>
         public int Number { get; }
 
-        /// <summary>Broche de la carte, utile au câblage.</summary>
-        public int Pin { get; }
+        /// <summary>
+        /// Broches des servomoteurs qui entraînent ce mouvement. Il y en a
+        /// deux : ils sont montés de part et d'autre du mécanisme.
+        /// </summary>
+        public int[] Pins { get; }
+
+        /// <summary>
+        /// true quand les deux servomoteurs sont montés face à face et doivent
+        /// donc tourner en sens contraire. Le miroir lui-même est appliqué par
+        /// la carte, pour que les deux moitiés d'une paire bougent dans la même
+        /// instruction ; l'information n'est reprise ici que pour l'affichage.
+        /// </summary>
+        public bool Mirrored { get; }
 
         /// <summary>
         /// Mouvement de grue piloté par cette voie, dans le vocabulaire du
@@ -87,7 +99,9 @@ namespace ServoMotorControl
         /// <summary>Repère affiché sous l'extrémité droite du curseur.</summary>
         public string EndLabel => Positions[^1].ShortName;
 
-        public string Wiring => $"voie {Number} · broche {Pin}";
+        public string Wiring =>
+            $"mouvement {Number} · {Pins.Length} servomoteurs, broches {string.Join(" et ", Pins)}"
+            + (Mirrored ? " · montés en opposition" : " · montés en tandem");
 
         // Exposées en propriétés d'instance : le XAML ne sait pas se lier
         // directement à des constantes.

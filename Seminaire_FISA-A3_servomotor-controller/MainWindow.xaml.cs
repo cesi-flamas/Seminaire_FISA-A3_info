@@ -11,19 +11,24 @@ namespace ServoMotorControl
 {
     public partial class MainWindow : Window
     {
-        // Affectation des voies de la grue. L'ordre de ce tableau fixe le
-        // numéro de voie envoyé à la carte — première ligne = voie 1 — et doit
-        // correspondre à SERVO_COUNT / SERVO_PINS dans le sketch Arduino.
+        // Mouvements de la grue. L'ordre de cette méthode fixe le numéro envoyé
+        // à la carte — premier bloc = mouvement 1 — et doit correspondre à
+        // MOVEMENT_PINS dans le sketch Arduino.
+        //
+        // Chaque mouvement est entraîné par DEUX servomoteurs montés de part et
+        // d'autre du mécanisme. L'IHM n'émet qu'une consigne par mouvement :
+        // c'est la carte qui en déduit l'angle miroir du second servomoteur,
+        // afin que les deux moitiés d'une paire bougent dans la même
+        // instruction plutôt qu'à 50 ms d'intervalle.
         //
         // Les positions remarquables sont nommées en langage métier : c'est
-        // ce que lit le technicien, l'angle n'est qu'une précision. Si les
-        // servomoteurs sont câblés dans l'autre sens, échanger ces deux blocs
-        // suffit, il n'y a rien à modifier ailleurs.
+        // ce que lit le technicien, l'angle n'est qu'une précision.
         private static IEnumerable<ServoChannel> BuildChannels()
         {
             yield return new ServoChannel(
                 number: 1,
-                pin: 9,
+                pins: [9, 10],
+                mirrored: true,
                 role: "Orientation",
                 movement: "Pivotement de la flèche, de la gauche vers la droite",
                 positions:
@@ -37,7 +42,8 @@ namespace ServoMotorControl
 
             yield return new ServoChannel(
                 number: 2,
-                pin: 10,
+                pins: [11, 3],
+                mirrored: true,
                 role: "Levage",
                 movement: "Montée et descente de la charge, du bas vers le haut",
                 positions:
@@ -351,8 +357,12 @@ namespace ServoMotorControl
                 return $"Voie {number} inconnue de l'interface, positionnée à {angle}°.";
             }
 
-            if (parts.Length == 2 && parts[0] == "READY" && int.TryParse(parts[1], out int declared))
+            // « READY <mouvements> », ou « READY <mouvements> <servomoteurs> »
+            // depuis que chaque mouvement est entraîné par une paire.
+            if (parts.Length is 2 or 3 && parts[0] == "READY" && int.TryParse(parts[1], out int declared))
             {
+                int expectedServos = Channels.Sum(c => c.Pins.Length);
+
                 // Un écart ici signifie que le sketch téléversé n'est pas celui
                 // qu'attend l'interface : c'est la cause typique d'un mouvement
                 // qui ne répond pas, et elle est invisible autrement.
@@ -361,6 +371,18 @@ namespace ServoMotorControl
                     SetState(LedFault, "Carte incompatible");
                     return $"ATTENTION : la carte déclare {declared} mouvement(s), l'interface en gère {Channels.Count}. "
                          + "Téléversez le sketch correspondant à cette version.";
+                }
+
+                if (parts.Length == 3 && int.TryParse(parts[2], out int servos))
+                {
+                    if (servos != expectedServos)
+                    {
+                        SetState(LedFault, "Carte incompatible");
+                        return $"ATTENTION : la carte pilote {servos} servomoteur(s), l'interface en attend {expectedServos}. "
+                             + "Vérifiez MOVEMENT_PINS dans le sketch.";
+                    }
+
+                    return $"Carte démarrée : {declared} mouvement(s), {servos} servomoteurs.";
                 }
 
                 return $"Carte démarrée, {declared} mouvement(s) disponible(s).";

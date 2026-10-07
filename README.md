@@ -28,8 +28,11 @@ La maquette de gestion de la grue nécessite le matériel suivant :
 * Un plateau de support Arduino-servomoteur-seringues,
 * Le système piston-poussoir en plastique PLA,
 * Une carte Arduino Uno,
-* Autant de servomoteurs que de seringues employés par la grue,
-* Une alimentation 5–6 V capable de fournir **au moins 2 A** (bloc secteur, ou 4 piles AA en support),
+* Deux servomoteurs par mouvement de la grue, montés de part et d'autre du
+  mécanisme, soit quatre pour l'orientation et le levage,
+* Une alimentation 5–6 V capable de fournir **au moins 3 A** pour les quatre
+  servomoteurs du montage actuel (bloc secteur ; comptez environ 1 A par
+  servomoteur en charge),
 * Une ”Breadboard”,
 * Un câble USB, USB 2.0.
 Le système de piston-poussoir PLA est imprimé ou à imprimer au Lab'CESI avec la coordination de vos ERP.
@@ -50,7 +53,8 @@ Le système de piston-poussoir PLA est imprimé ou à imprimer au Lab'CESI avec 
 >
 > Le symptôme est toujours le même : le servomoteur tremble, bourdonne,
 > n'atteint pas sa consigne, et la carte Arduino peut redémarrer toute seule.
-> Utilisez un bloc secteur 5–6 V / 2 A ou 4 piles AA.
+> Utilisez un bloc secteur 5–6 V délivrant au moins 3 A pour les quatre
+> servomoteurs du montage.
 >
 > Le reste du câblage du schéma est correct. Le point à ne pas rater est la
 > **masse commune** : le GND de l'Arduino et le (−) de l'alimentation doivent
@@ -61,15 +65,31 @@ Le système de piston-poussoir PLA est imprimé ou à imprimer au Lab'CESI avec 
 La liaison série est configurée à **9600 bauds, 8 bits, sans parité, 1 bit de
 stop** des deux côtés.
 
-Chaque servomoteur, donc chaque seringue, est une **voie** numérotée à partir
-de 1. Les voies portent le nom du mouvement de grue qu'elles commandent :
+Chaque **mouvement** de la grue est numéroté à partir de 1 et porte le nom de
+la fonction qu'il commande :
 
-| Voie | Broche | Mouvement | Sens |
+| Mouvement | Broches | Nom | Sens |
 |---|---|---|---|
-| 1 | 9 | **Orientation** | pivotement de la flèche, gauche ↔ droite |
-| 2 | 10 | **Levage** | montée et descente de la charge, haut ↕ bas |
+| 1 | 9 et 10 | **Orientation** | pivotement de la flèche, gauche ↔ droite |
+| 2 | 11 et 3 | **Levage** | montée et descente de la charge, haut ↕ bas |
 
-Si les deux servomoteurs sont câblés dans l'autre sens, échangez les deux blocs
+Chaque mouvement est entraîné par **deux servomoteurs montés de part et d'autre
+du mécanisme**, soit quatre au total. Montés face à face, ils doivent tourner
+en sens contraire pour entraîner la charge dans le même sens : le second reçoit
+donc l'angle en **miroir** du premier (15° ↔ 165°, 90° reste 90°). Leur donner
+la même consigne les ferait se combattre, forcer et chauffer jusqu'à la casse.
+
+Ce miroir est calculé **par la carte**, pas par l'IHM. L'interface n'émet
+qu'une consigne par mouvement, et la carte écrit les deux servomoteurs dans la
+même instruction. Si l'IHM les pilotait séparément, le tourniquet d'émission
+les décalerait de 50 ms et les deux moitiés d'une paire se combattraient à
+chaque déplacement.
+
+Si une paire est finalement montée dans le même sens, passez son entrée de
+`MOVEMENT_MIRRORED` à `false` dans le sketch : les deux servomoteurs
+recevront alors la même consigne.
+
+Si les deux paires sont câblées dans l'autre sens, échangez les deux blocs
 de `BuildChannels()` dans [MainWindow.xaml.cs](./Seminaire_FISA-A3_servomotor-controller/MainWindow.xaml.cs)
 et le commentaire correspondant dans le sketch : il n'y a rien d'autre à
 modifier, ni dans le code, ni dans l'interface.
@@ -99,9 +119,9 @@ créer son bouton de rappel : il n'y a pas de XAML à toucher.
 |---|---|---|
 | IHM → carte | `S2:120\n` | met la voie 2 à 120° |
 | IHM → carte | `120\n` | angle seul : s'applique à la voie 1 |
-| carte → IHM | `READY 2` | carte initialisée, 2 voies disponibles |
-| carte → IHM | `OK 2 120` | consigne appliquée sur la voie 2 |
-| carte → IHM | `ERR S5:90` | ligne invalide (voie inconnue, angle non numérique…), ignorée |
+| carte → IHM | `READY 2 4` | carte initialisée : 2 mouvements, 4 servomoteurs |
+| carte → IHM | `OK 2 120` | consigne appliquée sur le mouvement 2 |
+| carte → IHM | `ERR S5:90` | ligne invalide (mouvement inconnu, angle non numérique…), ignorée |
 
 La carte ne répond **que lorsqu'une consigne change réellement**. Un même angle
 renvoyé deux fois reste sans réponse : c'est volontaire, l'accusé systématique
@@ -112,13 +132,13 @@ Il est fixé à **2** et se change à deux endroits, qui doivent rester cohéren
 
 | Fichier | Déclaration |
 |---|---|
-| [Arduino_servomotor_controller.ino](./Arduino_servomotor_controller.ino) | `SERVO_COUNT` et `SERVO_PINS` |
+| [Arduino_servomotor_controller.ino](./Arduino_servomotor_controller.ino) | `MOVEMENT_COUNT`, `MOVEMENT_PINS` et `MOVEMENT_MIRRORED` |
 | [MainWindow.xaml.cs](./Seminaire_FISA-A3_servomotor-controller/MainWindow.xaml.cs) | `ServoDefinitions` (broche, nom du mouvement, sens) |
 
 L'IHM construit automatiquement un curseur par voie : il n'y a pas de XAML à
 retoucher. La bibliothèque `Servo` gère jusqu'à douze servomoteurs sur une Uno,
 mais **l'alimentation limite bien avant** : comptez environ 1 A par microservo
-en charge.
+en charge, soit 3 A au minimum pour les quatre du montage actuel.
 
 ### Cadence d'émission
 L'IHM n'émet qu'**une commande toutes les 50 ms**, et **une seule voie à la
