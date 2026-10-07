@@ -61,27 +61,54 @@ Le système de piston-poussoir PLA est imprimé ou à imprimer au Lab'CESI avec 
 La liaison série est configurée à **9600 bauds, 8 bits, sans parité, 1 bit de
 stop** des deux côtés.
 
+Chaque servomoteur, donc chaque seringue, est une **voie** numérotée à partir
+de 1.
+
 | Sens | Message | Signification |
 |---|---|---|
-| IHM → carte | `120\n` | consigne d'angle en degrés |
-| carte → IHM | `READY 90` | carte initialisée, servomoteur à 90° |
-| carte → IHM | `OK 120` | consigne appliquée |
-| carte → IHM | `ERR abc` | ligne reçue invalide, ignorée |
+| IHM → carte | `S2:120\n` | met la voie 2 à 120° |
+| IHM → carte | `120\n` | angle seul : s'applique à la voie 1 |
+| carte → IHM | `READY 2` | carte initialisée, 2 voies disponibles |
+| carte → IHM | `OK 2 120` | consigne appliquée sur la voie 2 |
+| carte → IHM | `ERR S5:90` | ligne invalide (voie inconnue, angle non numérique…), ignorée |
 
-L'IHM n'émet qu'une position toutes les 50 ms, même si le curseur bouge en
-continu. Ce n'est pas une limitation arbitraire : à 9600 bauds, envoyer les
-positions sans limitation sature le tampon de réception de la carte, qui perd
-alors une commande sur deux. Mesuré sur carte : 51 positions à 50 ms sont
-reçues sans perte, les 151 positions d'un balayage envoyé d'un bloc ne le sont
-pas. Ne descendez pas en dessous de 50 ms sans augmenter la vitesse de la
-liaison des deux côtés.
+La carte ne répond **que lorsqu'une consigne change réellement**. Un même angle
+renvoyé deux fois reste sans réponse : c'est volontaire, l'accusé systématique
+saturait le tampon d'émission de 64 octets de la carte.
+
+### Nombre de voies
+Il est fixé à **2** et se change à deux endroits, qui doivent rester cohérents :
+
+| Fichier | Déclaration |
+|---|---|
+| [Arduino_servomotor_controller.ino](./Arduino_servomotor_controller.ino) | `SERVO_COUNT` et `SERVO_PINS` |
+| [MainWindow.xaml.cs](./Seminaire_FISA-A3_servomotor-controller/MainWindow.xaml.cs) | `ServoPins` |
+
+L'IHM construit automatiquement un curseur par voie : il n'y a pas de XAML à
+retoucher. La bibliothèque `Servo` gère jusqu'à douze servomoteurs sur une Uno,
+mais **l'alimentation limite bien avant** : comptez environ 1 A par microservo
+en charge.
+
+### Cadence d'émission
+L'IHM n'émet qu'**une commande toutes les 50 ms**, et **une seule voie à la
+fois**, en tourniquet entre les voies qui ont changé. Ce n'est pas une
+limitation arbitraire : à 9600 bauds on dispose de 960 octets/s, et émettre
+toutes les voies à chaque tick ferait repasser commandes et accusés au dessus
+de cette limite. Mesuré sur carte : 51 positions espacées de 50 ms sont reçues
+sans aucune perte, alors que les 151 positions d'un balayage envoyé d'un bloc
+saturent le tampon de réception et en perdent près d'une sur deux.
+
+Comme on ne déplace qu'un curseur à la fois à la souris, le tourniquet ne se
+voit pas à l'usage. Si vous ajoutez des voies et que vous voulez les piloter
+simultanément, montez la vitesse de liaison des deux côtés plutôt que de
+baisser ce délai.
 
 Le débattement est limité à **15–165°** dans le sketch comme dans l'IHM : en
 deçà et au delà, la plupart des servomoteurs arrivent en butée mécanique et
 forcent. Si vous modifiez ces bornes, modifiez-les **aux deux endroits**
 (`ANGLE_MIN` / `ANGLE_MAX` dans [Arduino_servomotor_controller.ino](./Arduino_servomotor_controller.ino),
-`AngleMin` / `AngleMax` et les bornes du slider dans le projet WPF), faute de
-quoi l'écran affichera un angle que le servomoteur n'atteint jamais.
+`AngleMin` / `AngleMax` dans [ServoChannel.cs](./Seminaire_FISA-A3_servomotor-controller/ServoChannel.cs)),
+faute de quoi l'écran affichera un angle que le servomoteur n'atteint jamais.
 
 ## Mise en route
 1. Téléverser [Arduino_servomotor_controller.ino](./Arduino_servomotor_controller.ino) sur la carte via l'IDE Arduino.
@@ -89,9 +116,14 @@ quoi l'écran affichera un angle que le servomoteur n'atteint jamais.
    l'IHM ne pourra pas s'y connecter (« Accès refusé »).
 3. Lancer l'IHM, choisir le port COM de la carte (bouton « Rafraîchir » si la
    carte a été branchée après le lancement) puis cliquer sur « Se connecter ».
-4. Attendre le message `Carte prête` : l'ouverture du port redémarre l'Arduino,
-   le bootloader occupe la carte pendant environ 2 secondes.
-5. Déplacer le curseur. Le journal en bas de fenêtre affiche les réponses de la
-   carte.
+4. Attendre le message `Carte prête` : l'ouverture du port peut redémarrer
+   l'Arduino, le bootloader occupe alors la carte pendant environ 2 secondes.
+   L'IHM transmet ensuite la position de chaque voie, ce qui synchronise les
+   servomoteurs avec les curseurs affichés.
+5. Déplacer les curseurs, un par servomoteur. Le journal en bas de fenêtre
+   affiche les réponses de la carte, sous la forme `OK <voie> <angle>`.
+
+Une seule application peut occuper le port à la fois : pensez à cliquer sur
+« Déconnecter » avant de téléverser une nouvelle version du sketch.
 
 # Montage du système de piston

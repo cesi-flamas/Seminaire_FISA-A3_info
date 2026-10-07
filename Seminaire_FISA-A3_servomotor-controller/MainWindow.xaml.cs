@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.IO.Ports;
 using System.Text;
 using System.Windows;
@@ -7,9 +8,10 @@ namespace ServoMotorControl
 {
     public partial class MainWindow : Window
     {
-        // Doivent rester alignées sur ANGLE_MIN / ANGLE_MAX du sketch Arduino.
-        private const int AngleMin = 15;
-        private const int AngleMax = 165;
+        // Doit correspondre à SERVO_COUNT / SERVO_PINS dans le sketch Arduino :
+        // une voie par seringue de la grue. Ajouter ou retirer une entrée ici
+        // et dans le sketch suffit à changer le nombre de vérins pilotés.
+        private static readonly int[] ServoPins = { 9, 10 };
 
         // Un Arduino Uno redémarre à l'ouverture du port lorsque la ligne DTR
         // est activée ; le bootloader occupe alors la carte environ 1,5 s et
@@ -21,10 +23,10 @@ namespace ServoMotorControl
         // carte encore en cours de démarrage au moment de la connexion.
         private static readonly TimeSpan BootloaderDelay = TimeSpan.FromSeconds(2);
 
-        // Le slider déclenche ValueChanged à chaque pixel de déplacement, soit
-        // des centaines d'événements par seconde. À 9600 bauds la liaison ne
-        // suit pas et le servo accumule du retard. On ne transmet donc que la
-        // dernière position connue, à cadence fixe.
+        // Les sliders déclenchent un changement à chaque pixel de déplacement,
+        // soit des centaines d'envois par seconde. À 9600 bauds la liaison ne
+        // suit pas et les servomoteurs accumulent du retard. On n'émet donc
+        // que la dernière position connue, à cadence fixe.
         private static readonly TimeSpan SendInterval = TimeSpan.FromMilliseconds(50);
 
         private const int StatusLineCount = 6;
@@ -34,15 +36,19 @@ namespace ServoMotorControl
         private readonly StringBuilder _receiveBuffer = new();
         private readonly LinkedList<string> _statusLines = new();
 
-        private int _pendingAngle;   // dernière position demandée par l'utilisateur
-        private int _lastSentAngle = -1;
         private bool _readyToSend;   // false tant que le bootloader n'a pas rendu la main
+        private int _roundRobin;     // voie examinée en premier au prochain tick
+
+        public ObservableCollection<ServoChannel> Channels { get; } = new();
 
         public MainWindow()
         {
             InitializeComponent();
 
-            _pendingAngle = (int)Math.Round(angleSlider.Value);
+            for (int i = 0; i < ServoPins.Length; i++)
+                Channels.Add(new ServoChannel(i + 1, ServoPins[i]));
+
+            channelsItemsControl.ItemsSource = Channels;
 
             _sendTimer = new DispatcherTimer { Interval = SendInterval };
             _sendTimer.Tick += SendTimer_Tick;
@@ -114,13 +120,18 @@ namespace ServoMotorControl
             }
 
             _serialPort = port;
-            _lastSentAngle = -1;
             _readyToSend = false;
+            _roundRobin = 0;
+
+            // Toutes les voies sont marquées comme jamais transmises : chacune
+            // sera envoyée une fois la carte prête, ce qui synchronise les
+            // servomoteurs avec les positions affichées.
+            foreach (ServoChannel channel in Channels)
+                channel.LastSentAngle = -1;
+
             connectButton.Content = "Déconnecter";
             AppendStatus($"Connecté à {portName}. Initialisation de la carte…");
 
-            // Une fois la carte prête, on lui transmet la position affichée pour
-            // que le servo et le slider partent synchronisés.
             var bootTimer = new DispatcherTimer { Interval = BootloaderDelay };
             bootTimer.Tick += (_, _) =>
             {
@@ -170,38 +181,41 @@ namespace ServoMotorControl
             connectButton.Content = "Se connecter";
         }
 
-        private void AngleSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            // Mis à jour en toutes circonstances : auparavant l'affichage était
-            // à l'intérieur du test « port ouvert », donc le curseur bougeait
-            // sans que rien ne change à l'écran tant qu'on n'était pas connecté.
-            _pendingAngle = Math.Clamp((int)Math.Round(e.NewValue), AngleMin, AngleMax);
-
-            if (angleTextBlock != null)
-                angleTextBlock.Text = $"Angle actuel: {_pendingAngle}°";
-        }
-
         private void SendTimer_Tick(object? sender, EventArgs e)
         {
-            if (!_readyToSend || _serialPort is not { IsOpen: true })
+            if (!_readyToSend || _serialPort is not { IsOpen: true } || Channels.Count == 0)
                 return;
 
-            if (_pendingAngle == _lastSentAngle)
-                return;
+            // Une seule commande par tick, en tourniquet sur les voies. Émettre
+            // les quatre voies à chaque tick saturerait de nouveau la liaison :
+            // commandes et accusés dépasseraient les 960 octets/s disponibles à
+            // 9600 bauds. Le tourniquet garantit qu'aucune voie n'est affamée
+            // par une autre que l'on remuerait en continu.
+            for (int step = 0; step < Channels.Count; step++)
+            {
+                ServoChannel channel = Channels[(_roundRobin + step) % Channels.Count];
 
-            int angle = _pendingAngle;
-            try
-            {
-                _serialPort.WriteLine(angle.ToString());
-                _lastSentAngle = angle;
-            }
-            catch (Exception ex)
-            {
-                // Câble USB débranché en cours d'usage : l'exception remontait
-                // depuis le gestionnaire d'événement du slider et fermait
-                // l'application. On coupe proprement la liaison à la place.
-                AppendStatus($"Liaison perdue : {ex.Message}");
-                Disconnect();
+                int angle = channel.TargetAngle;
+                if (angle == channel.LastSentAngle)
+                    continue;
+
+                try
+                {
+                    _serialPort.WriteLine($"S{channel.Number}:{angle}");
+                    channel.LastSentAngle = angle;
+                }
+                catch (Exception ex)
+                {
+                    // Câble USB débranché en cours d'usage : l'exception
+                    // remontait depuis le gestionnaire du slider et fermait
+                    // l'application. On coupe proprement la liaison à la place.
+                    AppendStatus($"Liaison perdue : {ex.Message}");
+                    Disconnect();
+                }
+
+                // On reprendra à la voie suivante au prochain tick.
+                _roundRobin = (_roundRobin + step + 1) % Channels.Count;
+                return;
             }
         }
 
