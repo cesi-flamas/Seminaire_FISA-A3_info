@@ -36,16 +36,18 @@ namespace ServoMotorControl
                     return;
                 }
 
+                string portName = "COM6";
+                
                 if (comPortComboBox.SelectedItem != null)
                 {
-                    string portName = comPortComboBox.SelectedItem.ToString();
+                     portName = comPortComboBox.SelectedItem.ToString();
                 }
-                _serialPort = new SerialPort("COM6", 9600, Parity.None, 8, StopBits.One);
+                _serialPort = new SerialPort(portName, 9600, Parity.None, 8, StopBits.One);
                 try
                 {
                     _serialPort.Open();
                     connectButton.Content = "Déconnecter";
-                    MessageBox.Show($"Connecté à COM6.");
+                    MessageBox.Show($"Connecté à {portName}.");
                 }
                 catch (Exception ex)
                 {
