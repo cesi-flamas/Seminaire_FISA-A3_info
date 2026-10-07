@@ -1,4 +1,4 @@
-﻿using System.IO.Ports;
+using System.IO.Ports;
 using System.Windows;
 
 namespace ServoMotorControl
@@ -11,6 +11,16 @@ namespace ServoMotorControl
         {
             InitializeComponent();
             LoadComPorts();
+            AddHandler(KeyDownEvent, Window_Arrow_Key, RoutingStrategies.Tunnel);
+        }
+
+        private void Window_Arrow_Key(object? sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Up)
+                angleSlider.Value = Math.Min(angleSlider.Maximum, angleSlider.Value + angleSlider.TickFrequency);
+            else
+                angleSlider.Value = Math.Max(angleSlider.Minimum, angleSlider.Value - angleSlider.TickFrequency);
+            e.Handled = true;
         }
 
         private void LoadComPorts()
