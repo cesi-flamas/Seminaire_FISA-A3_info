@@ -164,8 +164,6 @@ angles.
   mouvements différent de celui de l'interface, le voyant passe au rouge et le
   journal l'annonce. C'est la cause typique d'un mouvement qui ne répond pas,
   et elle est invisible autrement.
-* **Rappel d'alimentation** affiché en permanence : c'est la panne la plus
-  fréquente du montage, et aucun logiciel ne peut la détecter.
 
 ## Mise en route
 1. Téléverser [Arduino_servomotor_controller.ino](./Arduino_servomotor_controller.ino) sur la carte via l'IDE Arduino.

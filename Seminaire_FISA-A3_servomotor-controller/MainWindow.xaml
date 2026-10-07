@@ -5,8 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ServoMotorControl"
         mc:Ignorable="d"
-        Title="Pupitre de commande - Grue FISA A3" Height="700" Width="780"
-        MinHeight="620" MinWidth="700">
+        Title="Pupitre de commande - Grue FISA A3" Height="640" Width="780"
+        MinHeight="560" MinWidth="700">
     <Window.Resources>
         <!-- Boutons de rappel de position : discrets au repos, ils ne doivent
              pas concurrencer visuellement le curseur. -->
@@ -22,7 +22,6 @@
 
     <Grid Margin="18">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -55,17 +54,10 @@
             </Grid>
         </Border>
 
-        <!-- Avertissement permanent : c'est la panne la plus fréquente du
-             montage, et elle ne se voit pas dans le logiciel. -->
-        <Border Grid.Row="1" Background="#FFF8E6" BorderBrush="#F0C36D" BorderThickness="1" Padding="10,7" CornerRadius="4" Margin="0,10,0,0">
-            <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="#7A5B00"
-                       Text="Alimentation : les servomoteurs doivent être alimentés par une source externe 5–6 V de 2 A minimum, masse reliée à celle de la carte. Alimentés par la broche 5V de l'Arduino, ils tremblent dès qu'ils forcent et peuvent faire redémarrer la carte."/>
-        </Border>
-
         <!-- Un bandeau par mouvement de la grue. Le nombre de voies est défini
              dans le code derrière et doit correspondre à SERVO_COUNT dans le
              sketch Arduino. -->
-        <ItemsControl x:Name="channelsItemsControl" Grid.Row="2" Margin="0,14,0,0">
+        <ItemsControl x:Name="channelsItemsControl" Grid.Row="1" Margin="0,14,0,0">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
                     <Border BorderBrush="#D0D5DD" BorderThickness="1" CornerRadius="4" Padding="14,12" Margin="0,0,0,12">
@@ -138,7 +130,7 @@
         </ItemsControl>
 
         <!-- Journal : traduit les réponses de la carte en langage métier. -->
-        <Grid Grid.Row="3">
+        <Grid Grid.Row="2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
