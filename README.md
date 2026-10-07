@@ -69,10 +69,31 @@ de 1. Les voies portent le nom du mouvement de grue qu'elles commandent :
 | 1 | 9 | **Orientation** | pivotement de la flèche, gauche ↔ droite |
 | 2 | 10 | **Levage** | montée et descente de la charge, haut ↕ bas |
 
-Si les deux servomoteurs sont câblés dans l'autre sens, échangez les deux
-lignes de `ServoDefinitions` dans [MainWindow.xaml.cs](./Seminaire_FISA-A3_servomotor-controller/MainWindow.xaml.cs)
+Si les deux servomoteurs sont câblés dans l'autre sens, échangez les deux blocs
+de `BuildChannels()` dans [MainWindow.xaml.cs](./Seminaire_FISA-A3_servomotor-controller/MainWindow.xaml.cs)
 et le commentaire correspondant dans le sketch : il n'y a rien d'autre à
 modifier, ni dans le code, ni dans l'interface.
+
+### Positions nommées
+L'interface ne demande jamais de raisonner en degrés. Chaque mouvement déclare
+ses positions remarquables, qui servent à la fois d'état affiché et de boutons
+de rappel :
+
+| Angle | Orientation | Levage |
+|---|---|---|
+| 15° | Entièrement à gauche | Entièrement descendu |
+| 52° | Orientée à gauche | Charge basse |
+| 90° | Flèche centrée | Charge à mi-hauteur |
+| 128° | Orientée à droite | Charge haute |
+| 165° | Entièrement à droite | Entièrement monté |
+
+L'état affiché est la position **la plus proche** de l'angle courant : les
+frontières tombent à mi-chemin entre deux repères, ce qui évite d'annoncer
+« Entièrement monté » alors que la course n'est qu'aux trois quarts. L'angle
+exact et le pourcentage de course restent affichés en dessous, en petit.
+
+Ces positions se déclarent dans `BuildChannels()`. En ajouter une suffit à
+créer son bouton de rappel : il n'y a pas de XAML à toucher.
 
 | Sens | Message | Signification |
 |---|---|---|
@@ -119,6 +140,32 @@ forcent. Si vous modifiez ces bornes, modifiez-les **aux deux endroits**
 (`ANGLE_MIN` / `ANGLE_MAX` dans [Arduino_servomotor_controller.ino](./Arduino_servomotor_controller.ino),
 `AngleMin` / `AngleMax` dans [ServoChannel.cs](./Seminaire_FISA-A3_servomotor-controller/ServoChannel.cs)),
 faute de quoi l'écran affichera un angle que le servomoteur n'atteint jamais.
+
+## L'interface
+Le pupitre est conçu pour être utilisé sans connaître le protocole ni les
+angles.
+
+* **Voyant d'état**, en haut à droite : gris hors ligne, orange pendant le
+  démarrage de la carte, vert quand les commandes sont actives, rouge en
+  défaut. Un curseur déplacé voyant gris n'agit sur rien.
+* **Un bandeau par mouvement**, avec son nom métier, l'état courant en clair
+  (« Entièrement monté »), et l'angle exact en second plan.
+* **Boutons de rappel** : un clic amène le mouvement à une position nommée,
+  sans viser au degré près avec la souris. Le curseur reste disponible pour
+  les positions intermédiaires, au clavier avec les flèches une fois
+  sélectionné.
+* **Repères d'extrémité** sous chaque curseur, pour que le sens du mouvement
+  se lise sans manipuler.
+* **« Tout au point neutre »** ramène les mouvements à mi-course, avant un
+  démontage ou un transport.
+* **Journal traduit** : la carte répond `OK 2 165`, l'interface affiche
+  `Levage : Entièrement monté (165°)`.
+* **Contrôle de cohérence** : si le sketch téléversé déclare un nombre de
+  mouvements différent de celui de l'interface, le voyant passe au rouge et le
+  journal l'annonce. C'est la cause typique d'un mouvement qui ne répond pas,
+  et elle est invisible autrement.
+* **Rappel d'alimentation** affiché en permanence : c'est la panne la plus
+  fréquente du montage, et aucun logiciel ne peut la détecter.
 
 ## Mise en route
 1. Téléverser [Arduino_servomotor_controller.ino](./Arduino_servomotor_controller.ino) sur la carte via l'IDE Arduino.

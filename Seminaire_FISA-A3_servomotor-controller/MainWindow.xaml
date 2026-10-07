@@ -5,70 +5,157 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ServoMotorControl"
         mc:Ignorable="d"
-        Title="Contrôle ServoMotor Arduino" Height="480" Width="560">
-    <Grid Margin="20">
+        Title="Pupitre de commande - Grue FISA A3" Height="700" Width="780"
+        MinHeight="620" MinWidth="700">
+    <Window.Resources>
+        <!-- Boutons de rappel de position : discrets au repos, ils ne doivent
+             pas concurrencer visuellement le curseur. -->
+        <Style x:Key="PresetButton" TargetType="Button">
+            <Setter Property="Padding" Value="9,3"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Background" Value="#F2F4F7"/>
+            <Setter Property="BorderBrush" Value="#D0D5DD"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="18">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Titre -->
-        <TextBlock Grid.Row="0" Text="Contrôle ServoMotor" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+        <!-- Bandeau de liaison : port, connexion, et voyant d'état toujours
+             visible. Un technicien doit savoir d'un coup d'oeil si ce qu'il
+             manipule agit réellement sur la machine. -->
+        <Border Grid.Row="0" Background="#F8F9FB" BorderBrush="#D0D5DD" BorderThickness="1" Padding="12" CornerRadius="4">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-        <!-- Port COM : la liste doit pouvoir être rechargée, la carte est
-             souvent branchée après le lancement de l'application. -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center">
-            <TextBlock Text="Port COM:" VerticalAlignment="Center"/>
-            <ComboBox x:Name="comPortComboBox" Width="150" Margin="10,0,0,0"/>
-            <Button x:Name="refreshButton" Content="Rafraîchir" Width="80" Margin="8,0,0,0" Click="RefreshButton_Click"/>
-        </StackPanel>
+                <TextBlock Text="Carte Arduino :" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                <ComboBox x:Name="comPortComboBox" Grid.Column="1" Width="130" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                <Button x:Name="refreshButton" Grid.Column="2" Content="Rechercher" Width="90" Margin="8,0,0,0" Padding="0,4" Click="RefreshButton_Click"
+                        ToolTip="Relire la liste des ports. À utiliser si la carte a été branchée après le lancement."/>
+                <Button x:Name="connectButton" Grid.Column="3" Content="Se connecter" Width="120" Margin="8,0,0,0" Padding="0,4" FontWeight="SemiBold" Click="ConnectButton_Click"/>
 
-        <!-- Bouton Connexion -->
-        <Button x:Name="connectButton" Grid.Row="2" Content="Se connecter" Width="120" HorizontalAlignment="Center" Margin="0,12,0,12" Click="ConnectButton_Click"/>
+                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse x:Name="stateLed" Width="12" Height="12" Fill="#98A2B3" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="stateTextBlock" Text="Hors ligne" Margin="7,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#475467"/>
+                </StackPanel>
+            </Grid>
+        </Border>
 
-        <!-- Une ligne par servomoteur, donc par seringue. Le nombre de voies
-             est défini dans le code derrière et doit correspondre à
-             SERVO_COUNT dans le sketch Arduino. -->
-        <ItemsControl x:Name="channelsItemsControl" Grid.Row="3">
+        <!-- Avertissement permanent : c'est la panne la plus fréquente du
+             montage, et elle ne se voit pas dans le logiciel. -->
+        <Border Grid.Row="1" Background="#FFF8E6" BorderBrush="#F0C36D" BorderThickness="1" Padding="10,7" CornerRadius="4" Margin="0,10,0,0">
+            <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="#7A5B00"
+                       Text="Alimentation : les servomoteurs doivent être alimentés par une source externe 5–6 V de 2 A minimum, masse reliée à celle de la carte. Alimentés par la broche 5V de l'Arduino, ils tremblent dès qu'ils forcent et peuvent faire redémarrer la carte."/>
+        </Border>
+
+        <!-- Un bandeau par mouvement de la grue. Le nombre de voies est défini
+             dans le code derrière et doit correspondre à SERVO_COUNT dans le
+             sketch Arduino. -->
+        <ItemsControl x:Name="channelsItemsControl" Grid.Row="2" Margin="0,14,0,0">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Grid Margin="0,8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="200"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="55"/>
-                        </Grid.ColumnDefinitions>
+                    <Border BorderBrush="#D0D5DD" BorderThickness="1" CornerRadius="4" Padding="14,12" Margin="0,0,0,12">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                        <!-- Le mouvement de grue d'abord, le câblage en dessous :
-                             l'opérateur raisonne en « lever » ou « orienter »,
-                             pas en numéro de broche. -->
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="{Binding Role}" FontWeight="Bold" FontSize="14"/>
-                            <TextBlock Text="{Binding Detail}" FontSize="10" Foreground="#777777" TextWrapping="Wrap"/>
-                        </StackPanel>
+                            <!-- En-tête : le mouvement à gauche, l'état courant
+                                 à droite, en gros. C'est la seule chose que le
+                                 technicien doit avoir besoin de lire. -->
+                            <StackPanel Grid.Row="0" Grid.Column="0">
+                                <TextBlock Text="{Binding Role}" FontSize="17" FontWeight="Bold" Foreground="#101828"/>
+                                <TextBlock Text="{Binding Movement}" FontSize="11" Foreground="#667085" TextWrapping="Wrap"/>
+                            </StackPanel>
 
-                        <!-- Les bornes viennent de la voie : elles sont alignées
-                             sur l'écrêtage appliqué par la carte. -->
-                        <Slider Grid.Column="1"
-                                Minimum="{Binding Minimum}"
-                                Maximum="{Binding Maximum}"
-                                Value="{Binding Angle, Mode=TwoWay}"
-                                TickFrequency="15"
-                                TickPlacement="BottomRight"
-                                VerticalAlignment="Center"/>
+                            <StackPanel Grid.Row="0" Grid.Column="1" HorizontalAlignment="Right">
+                                <TextBlock Text="{Binding PositionName}" FontSize="16" FontWeight="Bold" Foreground="#175CD3" HorizontalAlignment="Right"/>
+                                <TextBlock Text="{Binding Readout}" FontSize="11" Foreground="#667085" HorizontalAlignment="Right"/>
+                            </StackPanel>
 
-                        <TextBlock Grid.Column="2" Text="{Binding AngleText}" VerticalAlignment="Center" HorizontalAlignment="Right" FontSize="14"/>
-                    </Grid>
+                            <!-- Les bornes viennent de la voie : elles sont
+                                 alignées sur l'écrêtage appliqué par la carte. -->
+                            <Slider Grid.Row="1" Grid.ColumnSpan="2"
+                                    Minimum="{Binding Minimum}"
+                                    Maximum="{Binding Maximum}"
+                                    Value="{Binding Angle, Mode=TwoWay}"
+                                    TickFrequency="15"
+                                    TickPlacement="BottomRight"
+                                    IsSnapToTickEnabled="False"
+                                    LargeChange="15" SmallChange="1"
+                                    Margin="0,14,0,0"
+                                    ToolTip="Faites glisser, ou utilisez les flèches du clavier une fois le curseur sélectionné."/>
+
+                            <!-- Repères d'extrémité : le sens du mouvement doit
+                                 être lisible sans toucher au curseur. -->
+                            <Grid Grid.Row="2" Grid.ColumnSpan="2" Margin="0,2,0,0">
+                                <TextBlock Text="{Binding StartLabel}" FontSize="10" Foreground="#667085" HorizontalAlignment="Left"/>
+                                <TextBlock Text="{Binding EndLabel}" FontSize="10" Foreground="#667085" HorizontalAlignment="Right"/>
+                            </Grid>
+
+                            <!-- Rappels de position : un clic vaut mieux qu'un
+                                 glissement au degré près. -->
+                            <ItemsControl Grid.Row="3" Grid.ColumnSpan="2" ItemsSource="{Binding Positions}" Margin="0,12,0,0">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Content="{Binding ShortName}"
+                                                ToolTip="{Binding Tooltip}"
+                                                Style="{StaticResource PresetButton}"
+                                                Click="PresetButton_Click"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+                    </Border>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <!-- Journal : réponses de la carte (OK / ERR) et état de la liaison. -->
-        <Border Grid.Row="4" Margin="0,18,0,0" BorderBrush="#CCCCCC" BorderThickness="1" Padding="8">
-            <TextBlock x:Name="statusTextBlock" Text="Non connecté." TextWrapping="Wrap" VerticalAlignment="Top" Foreground="#444444"/>
-        </Border>
+        <!-- Journal : traduit les réponses de la carte en langage métier. -->
+        <Grid Grid.Row="3">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Margin="0,0,0,5">
+                <TextBlock Text="Journal de la liaison" FontWeight="SemiBold" FontSize="12" Foreground="#344054" VerticalAlignment="Center"/>
+                <Button x:Name="neutralButton" Content="Tout au point neutre" HorizontalAlignment="Right" Padding="10,3" FontSize="11" Click="NeutralButton_Click"
+                        ToolTip="Ramène tous les mouvements à mi-course. Utile avant de démonter ou de transporter la maquette."/>
+            </Grid>
+
+            <Border Grid.Row="1" BorderBrush="#D0D5DD" BorderThickness="1" Padding="8" Background="#FCFCFD" CornerRadius="4">
+                <ScrollViewer x:Name="logScrollViewer" VerticalScrollBarVisibility="Auto">
+                    <TextBlock x:Name="statusTextBlock" Text="Sélectionnez la carte puis cliquez sur « Se connecter »."
+                               TextWrapping="Wrap" VerticalAlignment="Top" Foreground="#475467" FontFamily="Consolas" FontSize="11"/>
+                </ScrollViewer>
+            </Border>
+        </Grid>
     </Grid>
 </Window>

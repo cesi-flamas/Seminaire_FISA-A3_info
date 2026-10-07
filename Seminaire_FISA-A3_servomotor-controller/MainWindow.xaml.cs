@@ -1,7 +1,10 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.IO.Ports;
 using System.Text;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Threading;
 
 namespace ServoMotorControl
@@ -12,14 +15,40 @@ namespace ServoMotorControl
         // numéro de voie envoyé à la carte — première ligne = voie 1 — et doit
         // correspondre à SERVO_COUNT / SERVO_PINS dans le sketch Arduino.
         //
-        // Si les deux servomoteurs sont câblés dans l'autre sens, il suffit
-        // d'échanger ces deux lignes : rien d'autre n'est à toucher, ni ici ni
-        // dans le XAML.
-        private static readonly (int Pin, string Role, string Movement)[] ServoDefinitions =
+        // Les positions remarquables sont nommées en langage métier : c'est
+        // ce que lit le technicien, l'angle n'est qu'une précision. Si les
+        // servomoteurs sont câblés dans l'autre sens, échanger ces deux blocs
+        // suffit, il n'y a rien à modifier ailleurs.
+        private static IEnumerable<ServoChannel> BuildChannels()
         {
-            (9,  "Orientation", "pivotement de la flèche, gauche ↔ droite"),
-            (10, "Levage",      "montée et descente de la charge, haut ↕ bas"),
-        };
+            yield return new ServoChannel(
+                number: 1,
+                pin: 9,
+                role: "Orientation",
+                movement: "Pivotement de la flèche, de la gauche vers la droite",
+                positions:
+                [
+                    new ServoPosition(15,  "Entièrement à gauche", "Gauche max"),
+                    new ServoPosition(52,  "Orientée à gauche",    "Gauche"),
+                    new ServoPosition(90,  "Flèche centrée",       "Centre"),
+                    new ServoPosition(128, "Orientée à droite",    "Droite"),
+                    new ServoPosition(165, "Entièrement à droite", "Droite max"),
+                ]);
+
+            yield return new ServoChannel(
+                number: 2,
+                pin: 10,
+                role: "Levage",
+                movement: "Montée et descente de la charge, du bas vers le haut",
+                positions:
+                [
+                    new ServoPosition(15,  "Entièrement descendu", "Bas complet"),
+                    new ServoPosition(52,  "Charge basse",         "Bas"),
+                    new ServoPosition(90,  "Charge à mi-hauteur",  "Mi-hauteur"),
+                    new ServoPosition(128, "Charge haute",         "Haut"),
+                    new ServoPosition(165, "Entièrement monté",    "Haut complet"),
+                ]);
+        }
 
         // Un Arduino Uno redémarre à l'ouverture du port lorsque la ligne DTR
         // est activée ; le bootloader occupe alors la carte environ 1,5 s et
@@ -31,13 +60,18 @@ namespace ServoMotorControl
         // carte encore en cours de démarrage au moment de la connexion.
         private static readonly TimeSpan BootloaderDelay = TimeSpan.FromSeconds(2);
 
-        // Les sliders déclenchent un changement à chaque pixel de déplacement,
+        // Les curseurs déclenchent un changement à chaque pixel de déplacement,
         // soit des centaines d'envois par seconde. À 9600 bauds la liaison ne
         // suit pas et les servomoteurs accumulent du retard. On n'émet donc
         // que la dernière position connue, à cadence fixe.
         private static readonly TimeSpan SendInterval = TimeSpan.FromMilliseconds(50);
 
-        private const int StatusLineCount = 6;
+        private const int StatusLineCount = 10;
+
+        private static readonly Brush LedOffline = new SolidColorBrush(Color.FromRgb(0x98, 0xA2, 0xB3));
+        private static readonly Brush LedBusy = new SolidColorBrush(Color.FromRgb(0xF7, 0x90, 0x09));
+        private static readonly Brush LedOnline = new SolidColorBrush(Color.FromRgb(0x12, 0xB7, 0x6A));
+        private static readonly Brush LedFault = new SolidColorBrush(Color.FromRgb(0xF0, 0x44, 0x38));
 
         private SerialPort? _serialPort;
         private readonly DispatcherTimer _sendTimer;
@@ -53,18 +87,22 @@ namespace ServoMotorControl
         {
             InitializeComponent();
 
-            for (int i = 0; i < ServoDefinitions.Length; i++)
-            {
-                (int pin, string role, string movement) = ServoDefinitions[i];
-                Channels.Add(new ServoChannel(i + 1, pin, role, movement));
-            }
+            foreach (ServoChannel channel in BuildChannels())
+                Channels.Add(channel);
 
             channelsItemsControl.ItemsSource = Channels;
 
             _sendTimer = new DispatcherTimer { Interval = SendInterval };
             _sendTimer.Tick += SendTimer_Tick;
 
+            SetState(LedOffline, "Hors ligne");
             LoadComPorts();
+        }
+
+        private void SetState(Brush colour, string text)
+        {
+            stateLed.Fill = colour;
+            stateTextBlock.Text = text;
         }
 
         private void LoadComPorts()
@@ -76,7 +114,7 @@ namespace ServoMotorControl
 
             if (ports.Length == 0)
             {
-                AppendStatus("Aucun port COM détecté. Branchez la carte puis cliquez sur « Rafraîchir ».");
+                AppendStatus("Aucune carte détectée. Branchez l'Arduino puis cliquez sur « Rechercher ».");
                 return;
             }
 
@@ -88,6 +126,26 @@ namespace ServoMotorControl
         private void RefreshButton_Click(object sender, RoutedEventArgs e)
         {
             LoadComPorts();
+            AppendStatus($"Recherche des cartes : {comPortComboBox.Items.Count} port(s) trouvé(s).");
+        }
+
+        /// <summary>Rappel d'une position nommée depuis son bouton.</summary>
+        private void PresetButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button { DataContext: ServoPosition position } && position.Owner is { } channel)
+            {
+                channel.Angle = position.Angle;
+                AppendStatus($"Commande : {channel.Role} → {position.Name}.");
+            }
+        }
+
+        /// <summary>Ramène tous les mouvements à mi-course.</summary>
+        private void NeutralButton_Click(object sender, RoutedEventArgs e)
+        {
+            foreach (ServoChannel channel in Channels)
+                channel.Angle = ServoChannel.AngleInit;
+
+            AppendStatus("Commande : tous les mouvements au point neutre.");
         }
 
         private void ConnectButton_Click(object sender, RoutedEventArgs e)
@@ -95,14 +153,14 @@ namespace ServoMotorControl
             if (_serialPort != null && _serialPort.IsOpen)
             {
                 Disconnect();
-                AppendStatus("Déconnecté du port série.");
+                AppendStatus("Liaison fermée.");
                 return;
             }
 
             string? portName = comPortComboBox.SelectedItem?.ToString();
             if (string.IsNullOrEmpty(portName))
             {
-                AppendStatus("Veuillez sélectionner un port COM.");
+                AppendStatus("Sélectionnez d'abord le port de la carte.");
                 return;
             }
 
@@ -126,7 +184,9 @@ namespace ServoMotorControl
             {
                 port.DataReceived -= SerialPort_DataReceived;
                 port.Dispose();
-                AppendStatus($"Erreur de connexion : {ex.Message}");
+                SetState(LedFault, "Échec");
+                AppendStatus($"Connexion impossible sur {portName} : {ex.Message}");
+                AppendStatus("Vérifiez que le moniteur série de l'IDE Arduino est bien fermé.");
                 return;
             }
 
@@ -141,7 +201,8 @@ namespace ServoMotorControl
                 channel.LastSentAngle = -1;
 
             connectButton.Content = "Déconnecter";
-            AppendStatus($"Connecté à {portName}. Initialisation de la carte…");
+            SetState(LedBusy, "Initialisation…");
+            AppendStatus($"Liaison ouverte sur {portName}. Démarrage de la carte en cours…");
 
             var bootTimer = new DispatcherTimer { Interval = BootloaderDelay };
             bootTimer.Tick += (_, _) =>
@@ -150,7 +211,8 @@ namespace ServoMotorControl
                 if (_serialPort is { IsOpen: true })
                 {
                     _readyToSend = true;
-                    AppendStatus("Carte prête.");
+                    SetState(LedOnline, "En ligne");
+                    AppendStatus("Carte prête, commandes actives.");
                 }
             };
             bootTimer.Start();
@@ -165,11 +227,12 @@ namespace ServoMotorControl
 
             SerialPort? port = _serialPort;
             _serialPort = null;
+
+            connectButton.Content = "Se connecter";
+            SetState(LedOffline, "Hors ligne");
+
             if (port is null)
-            {
-                connectButton.Content = "Se connecter";
                 return;
-            }
 
             // L'abonnement doit être retiré AVANT Close() : si le gestionnaire
             // DataReceived s'exécute pendant la fermeture, SerialPort.Close()
@@ -188,8 +251,6 @@ namespace ServoMotorControl
             {
                 port.Dispose();
             }
-
-            connectButton.Content = "Se connecter";
         }
 
         private void SendTimer_Tick(object? sender, EventArgs e)
@@ -198,7 +259,7 @@ namespace ServoMotorControl
                 return;
 
             // Une seule commande par tick, en tourniquet sur les voies. Émettre
-            // les quatre voies à chaque tick saturerait de nouveau la liaison :
+            // toutes les voies à chaque tick saturerait de nouveau la liaison :
             // commandes et accusés dépasseraient les 960 octets/s disponibles à
             // 9600 bauds. Le tourniquet garantit qu'aucune voie n'est affamée
             // par une autre que l'on remuerait en continu.
@@ -218,10 +279,12 @@ namespace ServoMotorControl
                 catch (Exception ex)
                 {
                     // Câble USB débranché en cours d'usage : l'exception
-                    // remontait depuis le gestionnaire du slider et fermait
+                    // remontait depuis le gestionnaire du curseur et fermait
                     // l'application. On coupe proprement la liaison à la place.
+                    SetState(LedFault, "Liaison perdue");
                     AppendStatus($"Liaison perdue : {ex.Message}");
                     Disconnect();
+                    return;
                 }
 
                 // On reprendra à la voie suivante au prochain tick.
@@ -262,11 +325,51 @@ namespace ServoMotorControl
                 content = content[(newline + 1)..];
 
                 if (line.Length > 0)
-                    AppendStatus($"Carte : {line}");
+                    AppendStatus(Translate(line));
             }
 
             _receiveBuffer.Clear();
             _receiveBuffer.Append(content);
+        }
+
+        /// <summary>
+        /// Traduit une réponse brute de la carte en langage métier. « OK 2 165 »
+        /// ne dit rien à un technicien ; « Levage : Entièrement monté » si.
+        /// </summary>
+        private string Translate(string line)
+        {
+            string[] parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            if (parts.Length == 3 && parts[0] == "OK"
+                && int.TryParse(parts[1], out int number)
+                && int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int angle))
+            {
+                ServoChannel? channel = Channels.FirstOrDefault(c => c.Number == number);
+                if (channel is not null)
+                    return $"{channel.Role} : {channel.NearestPosition(angle).Name} ({angle}°)";
+
+                return $"Voie {number} inconnue de l'interface, positionnée à {angle}°.";
+            }
+
+            if (parts.Length == 2 && parts[0] == "READY" && int.TryParse(parts[1], out int declared))
+            {
+                // Un écart ici signifie que le sketch téléversé n'est pas celui
+                // qu'attend l'interface : c'est la cause typique d'un mouvement
+                // qui ne répond pas, et elle est invisible autrement.
+                if (declared != Channels.Count)
+                {
+                    SetState(LedFault, "Carte incompatible");
+                    return $"ATTENTION : la carte déclare {declared} mouvement(s), l'interface en gère {Channels.Count}. "
+                         + "Téléversez le sketch correspondant à cette version.";
+                }
+
+                return $"Carte démarrée, {declared} mouvement(s) disponible(s).";
+            }
+
+            if (parts.Length >= 1 && parts[0] == "ERR")
+                return $"Commande refusée par la carte : {line[3..].Trim()}";
+
+            return $"Carte : {line}";
         }
 
         private void AppendStatus(string message)
@@ -276,6 +379,7 @@ namespace ServoMotorControl
                 _statusLines.RemoveFirst();
 
             statusTextBlock.Text = string.Join(Environment.NewLine, _statusLines);
+            logScrollViewer.ScrollToEnd();
         }
 
         protected override void OnClosed(EventArgs e)

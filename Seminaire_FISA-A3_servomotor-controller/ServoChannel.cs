@@ -1,11 +1,40 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
 namespace ServoMotorControl
 {
     /// <summary>
+    /// Une position remarquable d'un mouvement, désignée par son nom métier
+    /// plutôt que par son angle. C'est ce que lit et ce que commande le
+    /// technicien : « Entièrement monté », pas « 165° ».
+    /// </summary>
+    public class ServoPosition
+    {
+        public ServoPosition(int angle, string name, string shortName)
+        {
+            Angle = angle;
+            Name = name;
+            ShortName = shortName;
+        }
+
+        public int Angle { get; }
+
+        /// <summary>Désignation complète, affichée comme état courant.</summary>
+        public string Name { get; }
+
+        /// <summary>Désignation courte, portée par le bouton de rappel.</summary>
+        public string ShortName { get; }
+
+        /// <summary>Voie à laquelle cette position appartient, renseignée par elle.</summary>
+        public ServoChannel? Owner { get; internal set; }
+
+        public string Tooltip => $"Amener « {Owner?.Role} » à : {Name} ({Angle}°)";
+    }
+
+    /// <summary>
     /// Une voie de commande : un servomoteur, donc un mouvement de la grue.
-    /// L'IHM construit un curseur par voie à partir de cette classe, ce qui
+    /// L'IHM construit un bandeau par voie à partir de cette classe, ce qui
     /// évite d'avoir à retoucher le XAML quand les vérins changent.
     /// </summary>
     public class ServoChannel : INotifyPropertyChanged
@@ -17,12 +46,16 @@ namespace ServoMotorControl
 
         private double _angle = AngleInit;
 
-        public ServoChannel(int number, int pin, string role, string movement)
+        public ServoChannel(int number, int pin, string role, string movement, IEnumerable<ServoPosition> positions)
         {
             Number = number;
             Pin = pin;
             Role = role;
             Movement = movement;
+
+            Positions = new ReadOnlyCollection<ServoPosition>(positions.ToList());
+            foreach (ServoPosition position in Positions)
+                position.Owner = this;
         }
 
         /// <summary>Numéro de voie tel qu'attendu par la carte, à partir de 1.</summary>
@@ -41,8 +74,20 @@ namespace ServoMotorControl
         /// <summary>Sens du mouvement, en clair, pour lever toute ambiguïté.</summary>
         public string Movement { get; }
 
-        /// <summary>Ligne secondaire affichée sous le nom du mouvement.</summary>
-        public string Detail => $"{Movement}  ·  voie {Number}, broche {Pin}";
+        /// <summary>
+        /// Positions remarquables, de la butée basse à la butée haute. La
+        /// première et la dernière servent aussi de repères aux extrémités du
+        /// curseur, et chacune donne un bouton de rappel.
+        /// </summary>
+        public IReadOnlyList<ServoPosition> Positions { get; }
+
+        /// <summary>Repère affiché sous l'extrémité gauche du curseur.</summary>
+        public string StartLabel => Positions[0].ShortName;
+
+        /// <summary>Repère affiché sous l'extrémité droite du curseur.</summary>
+        public string EndLabel => Positions[^1].ShortName;
+
+        public string Wiring => $"voie {Number} · broche {Pin}";
 
         // Exposées en propriétés d'instance : le XAML ne sait pas se lier
         // directement à des constantes.
@@ -68,14 +113,46 @@ namespace ServoMotorControl
                 _angle = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(TargetAngle));
-                OnPropertyChanged(nameof(AngleText));
+                OnPropertyChanged(nameof(PositionName));
+                OnPropertyChanged(nameof(Readout));
             }
         }
 
         /// <summary>Consigne entière effectivement envoyée à la carte.</summary>
         public int TargetAngle => Math.Clamp((int)Math.Round(_angle), AngleMin, AngleMax);
 
-        public string AngleText => $"{TargetAngle}°";
+        /// <summary>Part de la course totale, repère familier à un technicien.</summary>
+        public int TravelPercent =>
+            (int)Math.Round((TargetAngle - AngleMin) * 100.0 / (AngleMax - AngleMin));
+
+        /// <summary>
+        /// État courant en langage métier. La position retenue est la plus
+        /// proche en angle : les frontières tombent donc à mi-chemin entre deux
+        /// positions remarquables, ce qui évite d'annoncer « Entièrement monté »
+        /// alors que la course n'est qu'aux trois quarts.
+        /// </summary>
+        public string PositionName => NearestPosition(TargetAngle).Name;
+
+        /// <summary>Ligne de précision sous l'état, pour qui veut le chiffre.</summary>
+        public string Readout => $"{TargetAngle}°  ·  {TravelPercent} % de la course";
+
+        public ServoPosition NearestPosition(int angle)
+        {
+            ServoPosition nearest = Positions[0];
+            int bestGap = Math.Abs(angle - nearest.Angle);
+
+            foreach (ServoPosition candidate in Positions)
+            {
+                int gap = Math.Abs(angle - candidate.Angle);
+                if (gap < bestGap)
+                {
+                    bestGap = gap;
+                    nearest = candidate;
+                }
+            }
+
+            return nearest;
+        }
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
