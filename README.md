@@ -29,7 +29,7 @@ La maquette de gestion de la grue nécessite le matériel suivant :
 * Le système piston-poussoir en plastique PLA,
 * Une carte Arduino Uno,
 * Autant de servomoteurs que de seringues employés par la grue,
-* Une alimentation 6V,
+* Une alimentation 5–6 V capable de fournir **au moins 2 A** (bloc secteur, ou 4 piles AA en support),
 * Une ”Breadboard”,
 * Un câble USB, USB 2.0.
 Le système de piston-poussoir PLA est imprimé ou à imprimer au Lab'CESI avec la coordination de vos ERP.
@@ -40,5 +40,50 @@ Le système de piston-poussoir PLA est imprimé ou à imprimer au Lab'CESI avec 
 
 # Montage du système Arduino
 [Schéma du système Arduino connectant un servomoteur.](./servomotor_FISA-A3_integration_schema.png)
+
+> **⚠️ Attention à l'alimentation.** Le schéma ci-dessus représente une pile 9 V
+> (type 6LR61). **Ne l'utilisez pas :**
+> * 9 V dépasse la tension nominale d'un servomoteur (4,8 à 6 V) ;
+> * une pile de ce format ne délivre que quelques centaines de mA, alors qu'un
+>   servomoteur en charge (pousser un piston de seringue) demande 1 à 2 A en
+>   pointe.
+>
+> Le symptôme est toujours le même : le servomoteur tremble, bourdonne,
+> n'atteint pas sa consigne, et la carte Arduino peut redémarrer toute seule.
+> Utilisez un bloc secteur 5–6 V / 2 A ou 4 piles AA.
+>
+> Le reste du câblage du schéma est correct. Le point à ne pas rater est la
+> **masse commune** : le GND de l'Arduino et le (−) de l'alimentation doivent
+> être reliés au même rail de la breadboard, sinon la carte et le servomoteur
+> n'ont pas la même référence de tension et la commande est ignorée.
+
+## Protocole de communication IHM ↔ carte
+La liaison série est configurée à **9600 bauds, 8 bits, sans parité, 1 bit de
+stop** des deux côtés.
+
+| Sens | Message | Signification |
+|---|---|---|
+| IHM → carte | `120\n` | consigne d'angle en degrés |
+| carte → IHM | `READY 90` | carte initialisée, servomoteur à 90° |
+| carte → IHM | `OK 120` | consigne appliquée |
+| carte → IHM | `ERR abc` | ligne reçue invalide, ignorée |
+
+Le débattement est limité à **15–165°** dans le sketch comme dans l'IHM : en
+deçà et au delà, la plupart des servomoteurs arrivent en butée mécanique et
+forcent. Si vous modifiez ces bornes, modifiez-les **aux deux endroits**
+(`ANGLE_MIN` / `ANGLE_MAX` dans [Arduino_servomotor_controller.ino](./Arduino_servomotor_controller.ino),
+`AngleMin` / `AngleMax` et les bornes du slider dans le projet WPF), faute de
+quoi l'écran affichera un angle que le servomoteur n'atteint jamais.
+
+## Mise en route
+1. Téléverser [Arduino_servomotor_controller.ino](./Arduino_servomotor_controller.ino) sur la carte via l'IDE Arduino.
+2. **Fermer le moniteur série de l'IDE Arduino** : il occupe le port COM et
+   l'IHM ne pourra pas s'y connecter (« Accès refusé »).
+3. Lancer l'IHM, choisir le port COM de la carte (bouton « Rafraîchir » si la
+   carte a été branchée après le lancement) puis cliquer sur « Se connecter ».
+4. Attendre le message `Carte prête` : l'ouverture du port redémarre l'Arduino,
+   le bootloader occupe la carte pendant environ 2 secondes.
+5. Déplacer le curseur. Le journal en bas de fenêtre affiche les réponses de la
+   carte.
 
 # Montage du système de piston
