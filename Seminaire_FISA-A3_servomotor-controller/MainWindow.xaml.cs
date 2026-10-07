@@ -1,16 +1,28 @@
 ﻿using System.IO.Ports;
 using System.Windows;
+using System.Windows.Threading;
+using Vortice.XInput;
 
 namespace ServoMotorControl
 {
     public partial class MainWindow : Window
     {
-        public SerialPort _serialPort;
+        private SerialPort? _serialPort;
+        private readonly DispatcherTimer _timer;
 
         public MainWindow()
         {
             InitializeComponent();
             LoadComPorts();
+            _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+            _timer.Tick += (_, _) => Poll();
+            _timer.Start();
+        }
+
+        private void Poll()
+        {
+            if (!XInput.GetState(0, out State s)) return;
+            angleSlider.Value += s.Gamepad.RightThumbX * 5.0 / 32768 ;
         }
 
         private void LoadComPorts()
