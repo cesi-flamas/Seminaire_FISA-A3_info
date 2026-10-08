@@ -3,8 +3,8 @@
  * "Seminaire_FISA-A3_servomotor-controller".
  *
  * Chaque MOUVEMENT de la grue est entraine par un ou plusieurs servomoteurs.
- * Le montage actuel ne comporte qu'un mouvement, le LEVAGE, entraine par DEUX
- * servomoteurs sur les broches 9 et 10.
+ * Le montage comporte DEUX mouvements, le LEVAGE et l'ORIENTATION, chacun
+ * entraine par DEUX servomoteurs, soit quatre au total.
  *
  * Quand une paire est montee face a face, ses deux servomoteurs doivent
  * tourner en sens contraire pour entrainer la charge dans le meme sens : le
@@ -40,25 +40,24 @@
 // dimensionnee a environ 1 A par servomoteur en charge. Alimentes par la
 // broche 5V de l'Arduino, ils tremblent des qu'ils forcent et font redemarrer
 // la carte.
-const byte MOVEMENT_COUNT      = 1;
+const byte MOVEMENT_COUNT      = 2;
 const byte SERVOS_PER_MOVEMENT = 2;
 
 // Un mouvement par ligne : la premiere ligne est le mouvement 1. Doit
 // correspondre a BuildChannels() dans MainWindow.xaml.cs.
 //
-//   mouvement 1, broches 9 et 10 : LEVAGE - montee et descente de la charge
-//
-// L'orientation de la fleche sera ajoutee ici en deuxieme ligne, avec ses
-// propres broches, en portant MOVEMENT_COUNT a 2.
+//   mouvement 1, broches  9 et 10 : LEVAGE      - montee et descente de la charge
+//   mouvement 2, broches 11 et 12 : ORIENTATION - pivotement de la fleche
 const byte MOVEMENT_PINS[MOVEMENT_COUNT][SERVOS_PER_MOVEMENT] = {
-  { 9, 10 },
+  {  9, 10 },
+  { 11, 12 },
 };
 
 // Sens de montage de chaque paire. true = servomoteurs montes face a face,
 // donc commandes en sens contraire : le second recoit l'angle en miroir du
 // premier. Passer a false une paire montee dans le meme sens, auquel cas ses
 // deux servomoteurs recevront la meme consigne.
-const bool MOVEMENT_MIRRORED[MOVEMENT_COUNT] = { true };
+const bool MOVEMENT_MIRRORED[MOVEMENT_COUNT] = { true, true };
 
 // Debattement reellement exploitable. En dessous de 15 et au dessus de 165 la
 // plupart des servomoteurs arrivent en butee mecanique : ils forcent, chauffent

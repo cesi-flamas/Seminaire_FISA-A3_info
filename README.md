@@ -29,9 +29,9 @@ La maquette de gestion de la grue nécessite le matériel suivant :
 * Le système piston-poussoir en plastique PLA,
 * Une carte Arduino Uno,
 * Deux servomoteurs par mouvement de la grue, montés de part et d'autre du
-  mécanisme, soit deux pour le levage du montage actuel,
-* Une alimentation 5–6 V capable de fournir **au moins 2 A** (bloc secteur ;
-  comptez environ 1 A par servomoteur en charge),
+  mécanisme, soit quatre pour le levage et l'orientation,
+* Une alimentation 5–6 V capable de fournir **au moins 4 A** pour les quatre
+  servomoteurs (bloc secteur ; comptez environ 1 A par servomoteur en charge),
 * Une ”Breadboard”,
 * Un câble USB, USB 2.0.
 Le système de piston-poussoir PLA est imprimé ou à imprimer au Lab'CESI avec la coordination de vos ERP.
@@ -69,10 +69,10 @@ la fonction qu'il commande :
 | Mouvement | Broches | Nom | Sens |
 |---|---|---|---|
 | 1 | 9 et 10 | **Levage** | montée et descente de la charge, haut ↕ bas |
+| 2 | 11 et 12 | **Orientation** | pivotement de la flèche, gauche ↔ droite |
 
-Le montage actuel ne comporte **qu'un seul mouvement**, le levage, entraîné par
-**deux servomoteurs** montés de part et d'autre du mécanisme. L'orientation de
-la flèche s'ajoutera plus tard comme second mouvement.
+Chaque mouvement est entraîné par **deux servomoteurs** montés de part et
+d'autre du mécanisme, soit **quatre au total**.
 
 ### Messages échangés
 
@@ -80,9 +80,9 @@ la flèche s'ajoutera plus tard comme second mouvement.
 |---|---|---|
 | IHM → carte | `S1:120\n` | met le mouvement 1 à 120° |
 | IHM → carte | `120\n` | angle seul : s'applique au mouvement 1 |
-| carte → IHM | `READY 1 2` | carte initialisée : 1 mouvement, 2 servomoteurs |
+| carte → IHM | `READY 2 4` | carte initialisée : 2 mouvements, 4 servomoteurs |
 | carte → IHM | `OK 1 120` | consigne appliquée sur le mouvement 1 |
-| carte → IHM | `ERR S2:90` | ligne invalide (mouvement inconnu, angle non numérique…), ignorée |
+| carte → IHM | `ERR S5:90` | ligne invalide (mouvement inconnu, angle non numérique…), ignorée |
 
 La carte ne répond **que lorsqu'une consigne change réellement**. Un même angle
 renvoyé deux fois reste sans réponse : c'est volontaire, l'accusé systématique
@@ -97,13 +97,13 @@ L'interface ne demande jamais de raisonner en degrés. Chaque mouvement déclare
 ses positions remarquables, qui servent à la fois d'état affiché et de boutons
 de rappel :
 
-| Angle | Levage |
-|---|---|
-| 15° | Entièrement descendu |
-| 52° | Charge basse |
-| 90° | Charge à mi-hauteur |
-| 128° | Charge haute |
-| 165° | Entièrement monté |
+| Angle | Levage | Orientation |
+|---|---|---|
+| 15° | Entièrement descendu | Entièrement à gauche |
+| 52° | Charge basse | Orientée à gauche |
+| 90° | Charge à mi-hauteur | Flèche centrée |
+| 128° | Charge haute | Orientée à droite |
+| 165° | Entièrement monté | Entièrement à droite |
 
 L'état affiché est la position **la plus proche** de l'angle courant : les
 frontières tombent à mi-chemin entre deux repères, ce qui évite d'annoncer
@@ -128,13 +128,13 @@ séparément, le tourniquet d'émission les décalerait de 50 ms et les deux
 moitiés d'une paire se combattraient à chaque déplacement du curseur.
 
 ### Ajouter un mouvement
-Le nombre de mouvements est fixé à **1**. Pour ajouter l'orientation, trois
+Le nombre de mouvements est fixé à **2**. Pour en ajouter un, trois
 modifications, qui doivent rester cohérentes entre elles :
 
-1. `MOVEMENT_COUNT` à `2` dans le sketch ;
-2. une seconde ligne dans `MOVEMENT_PINS` avec ses broches, et une seconde
-   entrée dans `MOVEMENT_MIRRORED` ;
-3. un second bloc dans `BuildChannels()` côté IHM, avec ses propres positions
+1. `MOVEMENT_COUNT` incrémenté dans le sketch ;
+2. une ligne de plus dans `MOVEMENT_PINS` avec ses broches, et une entrée de
+   plus dans `MOVEMENT_MIRRORED` ;
+3. un bloc de plus dans `BuildChannels()` côté IHM, avec ses propres positions
    nommées.
 
 L'interface crée son bandeau et ses boutons de rappel toute seule : il n'y a

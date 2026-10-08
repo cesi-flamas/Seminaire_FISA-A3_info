@@ -15,10 +15,8 @@ namespace ServoMotorControl
         // à la carte — premier bloc = mouvement 1 — et doit correspondre à
         // MOVEMENT_PINS dans le sketch Arduino.
         //
-        // Le montage actuel ne comporte qu'un mouvement, le levage, entraîné
-        // par DEUX servomoteurs sur les broches 9 et 10. L'orientation de la
-        // flèche s'ajoutera ici en second bloc, avec ses propres broches, en
-        // portant MOVEMENT_COUNT à 2 dans le sketch.
+        // Deux mouvements, chacun entraîné par DEUX servomoteurs montés de part
+        // et d'autre du mécanisme, soit quatre au total.
         //
         // L'IHM n'émet qu'une consigne par mouvement : c'est la carte qui en
         // déduit l'angle miroir du second servomoteur, afin que les deux
@@ -42,6 +40,21 @@ namespace ServoMotorControl
                     new ServoPosition(90,  "Charge à mi-hauteur",  "Mi-hauteur"),
                     new ServoPosition(128, "Charge haute",         "Haut"),
                     new ServoPosition(165, "Entièrement monté",    "Haut complet"),
+                ]);
+
+            yield return new ServoChannel(
+                number: 2,
+                pins: [11, 12],
+                mirrored: true,
+                role: "Orientation",
+                movement: "Pivotement de la flèche, de la gauche vers la droite",
+                positions:
+                [
+                    new ServoPosition(15,  "Entièrement à gauche", "Gauche max"),
+                    new ServoPosition(52,  "Orientée à gauche",    "Gauche"),
+                    new ServoPosition(90,  "Flèche centrée",       "Centre"),
+                    new ServoPosition(128, "Orientée à droite",    "Droite"),
+                    new ServoPosition(165, "Entièrement à droite", "Droite max"),
                 ]);
         }
 

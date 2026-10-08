@@ -5,8 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ServoMotorControl"
         mc:Ignorable="d"
-        Title="Pupitre de commande - Grue FISA A3" Height="520" Width="780"
-        MinHeight="460" MinWidth="700">
+        Title="Pupitre de commande - Grue FISA A3" Height="660" Width="780"
+        MinHeight="580" MinWidth="700">
     <Window.Resources>
         <!-- Boutons de rappel de position : discrets au repos, ils ne doivent
              pas concurrencer visuellement le curseur. -->
