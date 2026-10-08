@@ -8,7 +8,8 @@
     ".NETCoreApp,Version=v10.0": {
       "Seminaire_FISA-A3_servomotor-controller/1.0.0": {
         "dependencies": {
-          "System.IO.Ports": "10.0.11"
+          "System.IO.Ports": "10.0.11",
+          "Vortice.XInput": "3.8.3"
         },
         "runtime": {
           "Seminaire_FISA-A3_servomotor-controller.dll": {}
@@ -202,6 +203,14 @@
             "fileVersion": "10.0.1126.37416"
           }
         }
+      },
+      "Vortice.XInput/3.8.3": {
+        "runtime": {
+          "lib/net10.0/Vortice.XInput.dll": {
+            "assemblyVersion": "3.8.3.0",
+            "fileVersion": "3.8.3.0"
+          }
+        }
       }
     }
   },
@@ -336,6 +345,13 @@
       "sha512": "sha512-92gu68qcsZXcHhSyGxNdoVoDKxn9nV240k3jdq5b/vAzTt0QsFFE+bCmLKQ5p1XhAgelE5v+VaQEaAFH/JvZSA==",
       "path": "system.io.ports/10.0.11",
       "hashPath": "system.io.ports.10.0.11.nupkg.sha512"
+    },
+    "Vortice.XInput/3.8.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-ViuQjqlwaOvqPhmbFqnXDf4ItM7jvPFLLqtmtCP37aWwvyxQa7xuYeWQs2Oi5IEfUxfb6JZj5IRwGjxERRIoaA==",
+      "path": "vortice.xinput/3.8.3",
+      "hashPath": "vortice.xinput.3.8.3.nupkg.sha512"
     }
   }
 }

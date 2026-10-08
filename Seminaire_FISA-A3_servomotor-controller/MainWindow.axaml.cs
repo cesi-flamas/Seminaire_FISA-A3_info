@@ -5,6 +5,8 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Threading;
+using Vortice.XInput;
 
 namespace ServoMotorControl
 {
@@ -12,12 +14,29 @@ namespace ServoMotorControl
     {
         private SerialPort? _serialPort;
         private const double GaugeCenterX = 100, GaugeCenterY = 100, GaugeRadius = 90;
+        private readonly DispatcherTimer _timer;
+        private GamepadButtons _prevButtons;
 
         public MainWindow()
         {
             InitializeComponent();
             LoadComPorts();
             UpdateGauge();
+            _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+            _timer.Tick += (_, _) => Poll();
+            _timer.Start();
+        }
+
+        private void Poll()
+        {
+            if (!XInput.GetState(0, out State s)) return;
+            var pad = s.Gamepad;
+            // ponytail: stock XInput deadzone, raise it if the stick still drifts
+            angleSlider.Value += pad.RightThumbX * angleSlider.TickFrequency / 32768.0;
+            var newlyPressed = pad.Buttons & ~_prevButtons;
+            _prevButtons = pad.Buttons;
+            if ((newlyPressed & GamepadButtons.RightShoulder) != 0)
+                ToggleConnection();
         }
 
         private void UpdateGauge()
@@ -49,7 +68,19 @@ namespace ServoMotorControl
                 comPortComboBox.SelectedIndex = 0;
         }
 
-        private void ConnectButton_Click(object sender, RoutedEventArgs e)
+        private void Window_Arrow_Key(object? sender, KeyEventArgs e)
+        {
+            angleSlider.Value = e.Key switch
+            {
+                Key.Right => Math.Min(angleSlider.Maximum, angleSlider.Value + angleSlider.TickFrequency),
+                Key.Left => Math.Max(angleSlider.Minimum, angleSlider.Value - angleSlider.TickFrequency),
+                _ => angleSlider.Value
+            };
+            e.Handled = true;
+        }
+
+        private void ConnectButton_Click(object sender, RoutedEventArgs e) => ToggleConnection();
+        private void ToggleConnection()
         {
             if (_serialPort != null && _serialPort.IsOpen)
             {
