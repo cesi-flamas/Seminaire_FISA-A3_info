@@ -1,28 +1,30 @@
 ﻿using System.IO.Ports;
-using System.Windows;
-using System.Windows.Threading;
-using Vortice.XInput;
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 
 namespace ServoMotorControl
 {
     public partial class MainWindow : Window
     {
         private SerialPort? _serialPort;
-        private readonly DispatcherTimer _timer;
 
         public MainWindow()
         {
             InitializeComponent();
             LoadComPorts();
-            _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
-            _timer.Tick += (_, _) => Poll();
-            _timer.Start();
         }
 
-        private void Poll()
+        private void Window_Arrow_Key(object? sender, KeyEventArgs e)
         {
-            if (!XInput.GetState(0, out State s)) return;
-            angleSlider.Value += s.Gamepad.RightThumbX * 5.0 / 32768 ;
+            angleSlider.Value = e.Key switch
+            {
+                Key.Up => Math.Min(angleSlider.Maximum, angleSlider.Value + angleSlider.TickFrequency),
+                Key.Down => Math.Max(angleSlider.Minimum, angleSlider.Value - angleSlider.TickFrequency),
+                _ => angleSlider.Value
+            };
+            e.Handled = true;
         }
 
         private void LoadComPorts()
@@ -38,13 +40,13 @@ namespace ServoMotorControl
             {
                 _serialPort.Close();
                 connectButton.Content = "Se connecter";
-                MessageBox.Show("Déconnecté du port série.");
+                ShowStatus("Déconnecté du port série.");
             }
             else
             {
                 if (comPortComboBox.SelectedItem == null)
                 {
-                    MessageBox.Show("Veuillez sélectionner un port COM.");
+                    ShowStatus("Veuillez sélectionner un port COM.");
                     return;
                 }
 
@@ -52,31 +54,33 @@ namespace ServoMotorControl
                 
                 if (comPortComboBox.SelectedItem != null)
                 {
-                     portName = comPortComboBox.SelectedItem.ToString();
+                     portName = comPortComboBox.SelectedItem.ToString() ?? portName;
                 }
                 _serialPort = new SerialPort(portName, 9600, Parity.None, 8, StopBits.One);
                 try
                 {
                     _serialPort.Open();
                     connectButton.Content = "Déconnecter";
-                    MessageBox.Show($"Connecté à {portName}.");
+                    ShowStatus($"Connecté à {portName}.");
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Erreur de connexion: {ex.Message}");
+                    ShowStatus($"Erreur de connexion: {ex.Message}");
                 }
             }
         }
 
-        private void AngleSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        private void AngleSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
         {
+            int angle = (int)angleSlider.Value;
+            angleTextBlock.Text = $"Angle actuel: {angle}°";
             if (_serialPort != null && _serialPort.IsOpen)
             {
-                int angle = (int)angleSlider.Value;
-                angleTextBlock.Text = $"Angle actuel: {angle}°";
                 _serialPort.WriteLine(angle.ToString());
             }
         }
+
+        private void ShowStatus(string message) => statusTextBlock.Text = message;
 
         protected override void OnClosed(EventArgs e)
         {
