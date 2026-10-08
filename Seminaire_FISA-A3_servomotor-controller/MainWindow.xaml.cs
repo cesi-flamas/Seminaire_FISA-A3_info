@@ -370,15 +370,24 @@ namespace ServoMotorControl
         {
             string[] parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-            if (parts.Length == 3 && parts[0] == "OK"
+            // « OK » = consigne acceptée, le mouvement démarre ; « DONE » = la
+            // carte l'a atteinte. Les deux portent le même format.
+            if (parts.Length == 3 && parts[0] is "OK" or "DONE"
                 && int.TryParse(parts[1], out int number)
                 && int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int angle))
             {
-                ServoChannel? channel = Channels.FirstOrDefault(c => c.Number == number);
-                if (channel is not null)
-                    return $"{channel.Role} : {channel.NearestPosition(angle).Name} ({angle}°)";
+                bool done = parts[0] == "DONE";
 
-                return $"Voie {number} inconnue de l'interface, positionnée à {angle}°.";
+                ServoChannel? channel = Channels.FirstOrDefault(c => c.Number == number);
+                if (channel is null)
+                    return $"Mouvement {number} inconnu de l'interface, positionné à {angle}°.";
+
+                channel.IsMoving = !done;
+
+                string position = channel.NearestPosition(angle).Name;
+                return done
+                    ? $"{channel.Role} : position atteinte — {position} ({angle}°)"
+                    : $"{channel.Role} : en route vers {position} ({angle}°)";
             }
 
             // « READY <mouvements> », ou « READY <mouvements> <servomoteurs> »

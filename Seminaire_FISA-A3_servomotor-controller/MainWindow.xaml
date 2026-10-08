@@ -85,6 +85,21 @@
                             <StackPanel Grid.Row="0" Grid.Column="1" HorizontalAlignment="Right">
                                 <TextBlock Text="{Binding PositionName}" FontSize="16" FontWeight="Bold" Foreground="#175CD3" HorizontalAlignment="Right"/>
                                 <TextBlock Text="{Binding Readout}" FontSize="11" Foreground="#667085" HorizontalAlignment="Right"/>
+                                <!-- Les mouvements sont volontairement lents :
+                                     sans ce repère, un clic semblerait rester
+                                     sans effet pendant plusieurs secondes. -->
+                                <TextBlock Text="{Binding MovingText}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0,2,0,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="#98A2B3"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsMoving}" Value="True">
+                                                    <Setter Property="Foreground" Value="#F79009"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
                             </StackPanel>
 
                             <!-- Les bornes viennent de la voie : elles sont

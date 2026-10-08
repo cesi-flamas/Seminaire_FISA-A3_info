@@ -21,8 +21,9 @@
  *   PC -> carte : "S<mouvement>:<angle>\n", par exemple "S2:120\n"
  *                 "<angle>\n" seul est accepte et s'applique au mouvement 1
  *   carte -> PC : "READY <mouvements> <servomoteurs>"  au demarrage
- *                 "OK <mouvement> <angle>"  quand une consigne a change
- *                 "ERR <ligne>"             quand la ligne recue est invalide
+ *                 "OK <mouvement> <angle>"   consigne acceptee
+ *                 "DONE <mouvement> <angle>" consigne atteinte
+ *                 "ERR <ligne>"              ligne recue invalide
  *
  * L'angle annonce est toujours celui du mouvement, pas celui d'un servomoteur
  * en particulier : c'est la consigne que l'operateur a demandee.
@@ -69,8 +70,28 @@ const int ANGLE_INIT = 90;
 
 const byte BUFFER_SIZE = 12; // "S12:165" + marge ; au dela la ligne est invalide
 
+// VITESSE MAXIMALE DES MOUVEMENTS.
+//
+// Servo::write() envoie le palonnier a sa vitesse maximale, ce qui secoue la
+// structure de la grue et les pieces PLA a chaque changement de consigne. On
+// ne va donc pas directement a la consigne : on s'en approche de
+// RAMP_STEP_DEGREES degres toutes les RAMP_INTERVAL_MS millisecondes.
+//
+// Avec 1 degre toutes les 30 ms : environ 33 degres par seconde, soit la
+// course complete, 15 a 165 degres, en 4,5 secondes. Augmenter l'intervalle
+// pour ralentir, le diminuer pour accelerer.
+//
+// C'est une LIMITE de vitesse, pas une duree fixe : un deplacement lent du
+// curseur, qui avance de moins d'un degre par intervalle, passe sans etre
+// freine. Seuls les sauts, typiquement les boutons de rappel, sont lisses.
+const byte         RAMP_STEP_DEGREES = 1;
+const unsigned int RAMP_INTERVAL_MS  = 30;
+
 Servo servos[MOVEMENT_COUNT][SERVOS_PER_MOVEMENT];
-int   currentAngle[MOVEMENT_COUNT];
+
+int targetAngle[MOVEMENT_COUNT];   // consigne demandee par l'operateur
+int currentAngle[MOVEMENT_COUNT];  // position reellement appliquee, qui la rejoint
+unsigned long lastRampMs = 0;
 
 char buffer[BUFFER_SIZE];
 byte length     = 0;
@@ -98,6 +119,7 @@ void setup() {
     for (byte j = 0; j < SERVOS_PER_MOVEMENT; j++) {
       servos[i][j].attach(MOVEMENT_PINS[i][j]);
     }
+    targetAngle[i]  = ANGLE_INIT;
     currentAngle[i] = ANGLE_INIT;
     applyMovement(i, ANGLE_INIT);
   }
@@ -119,6 +141,13 @@ void setup() {
 }
 
 void loop() {
+  // Avancee des mouvements vers leur consigne, a cadence fixe.
+  unsigned long now = millis();
+  if (now - lastRampMs >= RAMP_INTERVAL_MS) {
+    lastRampMs = now;
+    stepMovements();
+  }
+
   // Lecture caractere par caractere : contrairement a Serial.readStringUntil(),
   // cette boucle ne bloque jamais une seconde sur une fin de ligne qui n'arrive
   // pas, et n'alloue pas d'objet String a chaque commande.
@@ -142,6 +171,33 @@ void loop() {
     else {
       discarding = true;
       length     = 0;
+    }
+  }
+}
+
+// Rapproche chaque mouvement de sa consigne d'un pas au plus. Signale par un
+// DONE le moment ou un mouvement atteint sa consigne : sur une grue, savoir
+// que le deplacement est termine vaut autant que savoir qu'il a ete demande.
+void stepMovements() {
+  for (byte i = 0; i < MOVEMENT_COUNT; i++) {
+    int gap = targetAngle[i] - currentAngle[i];
+    if (gap == 0) {
+      continue;
+    }
+
+    int step = (int)RAMP_STEP_DEGREES;
+    if (step > abs(gap)) {
+      step = abs(gap);     // dernier pas : on ne depasse jamais la consigne
+    }
+
+    currentAngle[i] += (gap > 0) ? step : -step;
+    applyMovement(i, currentAngle[i]);
+
+    if (currentAngle[i] == targetAngle[i]) {
+      Serial.print("DONE ");
+      Serial.print(i + 1);
+      Serial.print(' ');
+      Serial.println(currentAngle[i]);
     }
   }
 }
@@ -201,12 +257,13 @@ void handleCommand(char* line) {
 
   int angle = constrain(atoi(digits), ANGLE_MIN, ANGLE_MAX);
 
-  if (angle == currentAngle[index]) {
+  if (angle == targetAngle[index]) {
     return; // consigne inchangee : rien a faire, et surtout rien a emettre
   }
 
-  currentAngle[index] = angle;
-  applyMovement(index, angle);
+  // On pose la consigne ; c'est stepMovements() qui l'atteindra, a la vitesse
+  // autorisee. L'accuse porte la consigne demandee, pas la position courante.
+  targetAngle[index] = angle;
 
   Serial.print("OK ");
   Serial.print(index + 1);

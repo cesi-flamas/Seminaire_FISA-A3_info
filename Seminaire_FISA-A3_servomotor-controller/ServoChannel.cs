@@ -45,6 +45,7 @@ namespace ServoMotorControl
         public const int AngleInit = 90;
 
         private double _angle = AngleInit;
+        private bool _isMoving;
 
         public ServoChannel(int number, int[] pins, bool mirrored, string role, string movement, IEnumerable<ServoPosition> positions)
         {
@@ -150,6 +151,28 @@ namespace ServoMotorControl
 
         /// <summary>Ligne de précision sous l'état, pour qui veut le chiffre.</summary>
         public string Readout => $"{TargetAngle}°  ·  {TravelPercent} % de la course";
+
+        /// <summary>
+        /// Vrai entre l'acceptation d'une consigne et le moment où la carte
+        /// annonce l'avoir atteinte. Les mouvements étant volontairement lents,
+        /// un clic resterait sans effet visible pendant plusieurs secondes si
+        /// rien ne signalait que la grue est en train de se déplacer.
+        /// </summary>
+        public bool IsMoving
+        {
+            get => _isMoving;
+            set
+            {
+                if (_isMoving == value)
+                    return;
+
+                _isMoving = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(MovingText));
+            }
+        }
+
+        public string MovingText => _isMoving ? "mouvement en cours…" : "position atteinte";
 
         public ServoPosition NearestPosition(int angle)
         {

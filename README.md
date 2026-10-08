@@ -81,7 +81,8 @@ d'autre du mécanisme, soit **quatre au total**.
 | IHM → carte | `S1:120\n` | met le mouvement 1 à 120° |
 | IHM → carte | `120\n` | angle seul : s'applique au mouvement 1 |
 | carte → IHM | `READY 2 4` | carte initialisée : 2 mouvements, 4 servomoteurs |
-| carte → IHM | `OK 1 120` | consigne appliquée sur le mouvement 1 |
+| carte → IHM | `OK 1 120` | consigne acceptée, le mouvement démarre |
+| carte → IHM | `DONE 1 120` | consigne atteinte, le mouvement est terminé |
 | carte → IHM | `ERR S5:90` | ligne invalide (mouvement inconnu, angle non numérique…), ignorée |
 
 La carte ne répond **que lorsqu'une consigne change réellement**. Un même angle
@@ -91,6 +92,36 @@ saturait le tampon d'émission de 64 octets de la carte.
 Au démarrage, la carte purge son tampon de réception avant d'écouter. Sans
 cela, le bruit de la ligne série pendant le redémarrage suffit à composer un
 nombre valide, et les servomoteurs partent tout seuls — observé en essai.
+
+### Vitesse des mouvements
+Les mouvements sont volontairement **lents** : `Servo::write()` envoie le
+palonnier à sa vitesse maximale, ce qui secoue la structure de la grue et
+les pièces PLA à chaque changement de consigne. La carte ne va donc pas
+directement à la consigne, elle s'en approche par paliers.
+
+| Constante (sketch) | Valeur | Effet |
+|---|---|---|
+| `RAMP_STEP_DEGREES` | 1° | amplitude d'un palier |
+| `RAMP_INTERVAL_MS` | 30 ms | durée d'un palier |
+
+Soit environ **33°/s**, et la course complète, 15 à 165°, en **4,5 s**.
+Mesuré sur carte : 4527 ms pour la course complète, 2321 ms pour un
+demi-parcours. Augmentez l'intervalle pour ralentir, diminuez-le pour
+accélérer.
+
+C'est une **limite** de vitesse, pas une durée fixe. Un déplacement lent du
+curseur, qui avance de moins d'un degré par palier, passe sans ètre freiné :
+mesuré à 57 ms en moyenne pour des pas de 1°. Seuls les sauts, typiquement les
+boutons de rappel, sont lissés. Les mouvements avancent en parallèle, pas
+l'un après l'autre.
+
+Comme pour le miroir, la rampe est générée **par la carte**. L'IHM se
+contenterait d'inonder la liaison en émettant les positions intermédiaires, et
+le mouvement dépendrait des aléas du port série.
+
+L'interface affiche **« mouvement en cours… »** en orange tant que la carte
+n'a pas renvoyé son `DONE`, puis **« position atteinte »**. Sans ce repère, un
+clic semblerait rester sans effet pendant plusieurs secondes.
 
 ### Positions nommées
 L'interface ne demande jamais de raisonner en degrés. Chaque mouvement déclare
