@@ -19,7 +19,6 @@ void loop() {
     // Constrain angle to valid servo range (0-180)
     angle = constrain(angle, 0, 180);
     myServo.write(angle); // Move servo to the angle
-    Serial.println(angle);
     }
     
   }
