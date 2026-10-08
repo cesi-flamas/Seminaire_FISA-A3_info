@@ -99,9 +99,10 @@ namespace ServoMotorControl
         /// <summary>Repère affiché sous l'extrémité droite du curseur.</summary>
         public string EndLabel => Positions[^1].ShortName;
 
-        public string Wiring =>
-            $"mouvement {Number} · {Pins.Length} servomoteurs, broches {string.Join(" et ", Pins)}"
-            + (Mirrored ? " · montés en opposition" : " · montés en tandem");
+        public string Wiring => Pins.Length == 1
+            ? $"mouvement {Number} · 1 servomoteur, broche {Pins[0]}"
+            : $"mouvement {Number} · {Pins.Length} servomoteurs, broches {string.Join(" et ", Pins)}"
+              + (Mirrored ? " · montés en opposition" : " · montés en tandem");
 
         // Exposées en propriétés d'instance : le XAML ne sait pas se lier
         // directement à des constantes.

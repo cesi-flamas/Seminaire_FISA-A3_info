@@ -2,13 +2,17 @@
  * Pilotage des mouvements de la grue depuis l'IHM WPF
  * "Seminaire_FISA-A3_servomotor-controller".
  *
- * Chaque MOUVEMENT de la grue est entraine par DEUX servomoteurs montes de
- * part et d'autre du mecanisme. Montes face a face, ils doivent tourner en
- * sens contraire pour entrainer la charge dans le meme sens : le second recoit
- * donc l'angle en miroir du premier. Leur donner la meme consigne les ferait
- * se combattre, forcer et chauffer jusqu'a la casse.
+ * Chaque MOUVEMENT de la grue est entraine par un ou plusieurs servomoteurs.
+ * Le montage actuel en compte UN par mouvement ; le passage a DEUX, montes de
+ * part et d'autre du mecanisme, se fait en portant SERVOS_PER_MOVEMENT a 2 et
+ * en ajoutant la seconde broche a chaque ligne de MOVEMENT_PINS.
  *
- * Le miroir est applique ICI et non cote PC a dessein. L'IHM n'emet qu'une
+ * Quand une paire est montee face a face, ses deux servomoteurs doivent
+ * tourner en sens contraire pour entrainer la charge dans le meme sens : le
+ * second recoit alors l'angle en miroir du premier. Leur donner la meme
+ * consigne les ferait se combattre, forcer et chauffer jusqu'a la casse.
+ *
+ * Ce miroir est applique ICI et non cote PC a dessein. L'IHM n'emet qu'une
  * commande toutes les 50 ms, en tourniquet sur les mouvements : si elle devait
  * piloter les deux servomoteurs d'une paire separement, les deux moities
  * bougeraient a 50 ms d'intervalle et se combattraient a chaque deplacement.
@@ -32,25 +36,34 @@
 
 #include <Servo.h>
 
-// ATTENTION : chaque servomoteur ajoute son propre appel de courant, et il y
-// en a desormais quatre. Une alimentation externe 5-6 V d'au moins 3 A est
-// necessaire, masse reliee a celle de la carte. Alimentes par la broche 5V de
-// l'Arduino, ils tremblent des qu'ils forcent et font redemarrer la carte.
+// ATTENTION : chaque servomoteur ajoute son propre appel de courant. Une
+// alimentation externe 5-6 V est necessaire, masse reliee a celle de la carte,
+// dimensionnee a environ 1 A par servomoteur en charge. Alimentes par la
+// broche 5V de l'Arduino, ils tremblent des qu'ils forcent et font redemarrer
+// la carte.
 const byte MOVEMENT_COUNT      = 2;
-const byte SERVOS_PER_MOVEMENT = 2;
+
+// Nombre de servomoteurs par mouvement. A porter a 2 lorsque les paires seront
+// montees de part et d'autre du mecanisme ; il faudra alors ajouter la seconde
+// broche a chaque ligne de MOVEMENT_PINS ci-dessous.
+const byte SERVOS_PER_MOVEMENT = 1;
 
 // Un mouvement par ligne, dans l'ordre des voies : la premiere ligne est le
 // mouvement 1. Doit correspondre a BuildChannels() dans MainWindow.xaml.cs.
 //
-//   mouvement 1, broches  9 et 10 : ORIENTATION - pivotement de la fleche
-//   mouvement 2, broches 11 et  3 : LEVAGE      - montee et descente de la charge
+//   mouvement 1, broche  9 : ORIENTATION - pivotement de la fleche
+//   mouvement 2, broche 10 : LEVAGE      - montee et descente de la charge
+//
+// En passant a deux servomoteurs : { 9, 10 } et { 11, 3 } par exemple.
 const byte MOVEMENT_PINS[MOVEMENT_COUNT][SERVOS_PER_MOVEMENT] = {
-  {  9, 10 },
-  { 11,  3 },
+  {  9 },
+  { 10 },
 };
 
-// Passer a false si les deux servomoteurs d'un mouvement sont finalement
-// montes dans le meme sens : ils recevront alors la meme consigne.
+// Sens de montage de chaque paire. Sans effet tant qu'il n'y a qu'un
+// servomoteur par mouvement ; a partir de deux, true signifie montes face a
+// face, donc commandes en sens contraire. Passer a false une paire finalement
+// montee dans le meme sens : ses servomoteurs recevront la meme consigne.
 const bool MOVEMENT_MIRRORED[MOVEMENT_COUNT] = { true, true };
 
 // Debattement reellement exploitable. En dessous de 15 et au dessus de 165 la
@@ -75,11 +88,14 @@ int mirrorAngle(int angle) {
   return ANGLE_MIN + ANGLE_MAX - angle;
 }
 
-// Ecrit une consigne sur les deux servomoteurs d'un mouvement, en appliquant
-// le miroir au second si le montage l'impose.
+// Ecrit une consigne sur tous les servomoteurs d'un mouvement, dans la meme
+// instruction pour qu'ils restent synchrones. Quand la paire est montee face a
+// face, les servomoteurs de rang impair recoivent l'angle en miroir.
 void applyMovement(byte index, int angle) {
-  servos[index][0].write(angle);
-  servos[index][1].write(MOVEMENT_MIRRORED[index] ? mirrorAngle(angle) : angle);
+  for (byte j = 0; j < SERVOS_PER_MOVEMENT; j++) {
+    bool invert = MOVEMENT_MIRRORED[index] && (j % 2 == 1);
+    servos[index][j].write(invert ? mirrorAngle(angle) : angle);
+  }
 }
 
 void setup() {

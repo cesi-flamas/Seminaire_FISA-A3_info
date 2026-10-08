@@ -15,11 +15,14 @@ namespace ServoMotorControl
         // à la carte — premier bloc = mouvement 1 — et doit correspondre à
         // MOVEMENT_PINS dans le sketch Arduino.
         //
-        // Chaque mouvement est entraîné par DEUX servomoteurs montés de part et
-        // d'autre du mécanisme. L'IHM n'émet qu'une consigne par mouvement :
-        // c'est la carte qui en déduit l'angle miroir du second servomoteur,
-        // afin que les deux moitiés d'une paire bougent dans la même
-        // instruction plutôt qu'à 50 ms d'intervalle.
+        // Le montage actuel compte UN servomoteur par mouvement. Pour passer à
+        // deux, montés de part et d'autre du mécanisme, ajouter la seconde
+        // broche ici et porter SERVOS_PER_MOVEMENT à 2 dans le sketch.
+        //
+        // L'IHM n'émet de toute façon qu'une consigne par mouvement : c'est la
+        // carte qui en déduira l'angle miroir du second servomoteur, afin que
+        // les deux moitiés d'une paire bougent dans la même instruction plutôt
+        // qu'à 50 ms d'intervalle.
         //
         // Les positions remarquables sont nommées en langage métier : c'est
         // ce que lit le technicien, l'angle n'est qu'une précision.
@@ -27,7 +30,7 @@ namespace ServoMotorControl
         {
             yield return new ServoChannel(
                 number: 1,
-                pins: [9, 10],
+                pins: [9],
                 mirrored: true,
                 role: "Orientation",
                 movement: "Pivotement de la flèche, de la gauche vers la droite",
@@ -42,7 +45,7 @@ namespace ServoMotorControl
 
             yield return new ServoChannel(
                 number: 2,
-                pins: [11, 3],
+                pins: [10],
                 mirrored: true,
                 role: "Levage",
                 movement: "Montée et descente de la charge, du bas vers le haut",
