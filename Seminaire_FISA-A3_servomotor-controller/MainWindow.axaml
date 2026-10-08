@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ServoMotorControl"
         mc:Ignorable="d"
-        Title="Contrôle ServoMotor Arduino" Height="300" Width="400"
+        Title="Contrôle ServoMotor Arduino" Height="400" Width="400"
         KeyDown="Window_Arrow_Key">
     <Grid Margin="20">
         <Grid.RowDefinitions>
@@ -35,8 +35,16 @@
         
         <!-- Slider Angle -->
         <TextBlock Grid.Row="4" Grid.Column="0" Text="Angle (°):" VerticalAlignment="Center"/>
-        <Slider x:Name="angleSlider" TickPlacement="BottomRight" TickFrequency="5" IsSnapToTickEnabled="True" Grid.Row="4" Grid.Column="1" Minimum="0" Maximum="180" Value="90" Width="150" Margin="10,0,0,0" ValueChanged="AngleSlider_ValueChanged"/>
-
+        <Slider x:Name="angleSlider" IsVisible="False" TickFrequency="5" IsSnapToTickEnabled="True"
+                Minimum="0" Maximum="180" Value="90" ValueChanged="AngleSlider_ValueChanged"/>
+        <Canvas x:Name="gaugeCanvas" Grid.Row="4" Grid.ColumnSpan="2" Width="200" Height="110"
+                Background="Transparent" HorizontalAlignment="Center"
+                PointerPressed="Gauge_PointerPressed" PointerMoved="Gauge_PointerMoved">
+            <Path Data="M 10,100 A 90,90 0 0 1 190,100" Stroke="Gray" StrokeThickness="14" StrokeLineCap="Round"/>
+            <Path x:Name="gaugeFill" Stroke="Aqua" StrokeThickness="14" StrokeLineCap="Round"/>
+            <Line x:Name="gaugeNeedle" Stroke="OrangeRed" StrokeThickness="3" StartPoint="100,100" EndPoint="100,20"/>
+            <Ellipse Canvas.Left="94" Canvas.Top="94" Width="12" Height="12" Fill="OrangeRed"/>
+        </Canvas>
         <!-- Affichage Angle -->
         <TextBlock x:Name="angleTextBlock" Grid.Row="5" Grid.ColumnSpan="2" Text="Angle actuel: 90°" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14"/>
     </Grid>

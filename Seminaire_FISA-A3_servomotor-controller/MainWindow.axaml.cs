@@ -1,30 +1,45 @@
 ﻿using System.IO.Ports;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 
 namespace ServoMotorControl
 {
     public partial class MainWindow : Window
     {
         private SerialPort? _serialPort;
+        private const double GaugeCenterX = 100, GaugeCenterY = 100, GaugeRadius = 90;
 
         public MainWindow()
         {
             InitializeComponent();
             LoadComPorts();
+            UpdateGauge();
         }
 
-        private void Window_Arrow_Key(object? sender, KeyEventArgs e)
+        private void UpdateGauge()
         {
-            angleSlider.Value = e.Key switch
-            {
-                Key.Up => Math.Min(angleSlider.Maximum, angleSlider.Value + angleSlider.TickFrequency),
-                Key.Down => Math.Max(angleSlider.Minimum, angleSlider.Value - angleSlider.TickFrequency),
-                _ => angleSlider.Value
-            };
-            e.Handled = true;
+            double rad = angleSlider.Value * Math.PI / 180;
+            var tip = new Point(GaugeCenterX - GaugeRadius * Math.Cos(rad), GaugeCenterY - GaugeRadius * Math.Sin(rad));
+            gaugeNeedle.EndPoint = new Point(GaugeCenterX - (GaugeRadius - 8) * Math.Cos(rad),
+                GaugeCenterY - (GaugeRadius - 8) * Math.Sin(rad));
+            var figure = new PathFigure { StartPoint = new Point(GaugeCenterX - GaugeRadius, GaugeCenterY), IsClosed = false };
+            figure.Segments!.Add(new ArcSegment { Point = tip, Size = new Size(GaugeRadius, GaugeRadius),
+                SweepDirection = SweepDirection.Clockwise });
+            gaugeFill.Data = new PathGeometry { Figures = new PathFigures { figure } };
+        }
+        private void Gauge_PointerPressed(object? sender, PointerPressedEventArgs e) => SetAngleFromPointer(e);
+        private void Gauge_PointerMoved(object? sender, PointerEventArgs e) => SetAngleFromPointer(e);
+        private void SetAngleFromPointer(PointerEventArgs e)
+        {
+            if (!e.GetCurrentPoint(gaugeCanvas).Properties.IsLeftButtonPressed) return;
+            var p = e.GetPosition(gaugeCanvas);
+            double deg = Math.Atan2(GaugeCenterY - p.Y, GaugeCenterX - p.X) * 180 / Math.PI;
+            deg = Math.Clamp(deg, 0, 180);
+            angleSlider.Value = Math.Round(deg / angleSlider.TickFrequency) * angleSlider.TickFrequency;
         }
 
         private void LoadComPorts()
@@ -74,6 +89,7 @@ namespace ServoMotorControl
         {
             int angle = (int)angleSlider.Value;
             angleTextBlock.Text = $"Angle actuel: {angle}°";
+            UpdateGauge();
             if (_serialPort != null && _serialPort.IsOpen)
             {
                 _serialPort.WriteLine(angle.ToString());
