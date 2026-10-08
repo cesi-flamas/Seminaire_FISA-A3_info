@@ -3,9 +3,8 @@
  * "Seminaire_FISA-A3_servomotor-controller".
  *
  * Chaque MOUVEMENT de la grue est entraine par un ou plusieurs servomoteurs.
- * Le montage actuel en compte UN par mouvement ; le passage a DEUX, montes de
- * part et d'autre du mecanisme, se fait en portant SERVOS_PER_MOVEMENT a 2 et
- * en ajoutant la seconde broche a chaque ligne de MOVEMENT_PINS.
+ * Le montage actuel ne comporte qu'un mouvement, le LEVAGE, entraine par DEUX
+ * servomoteurs sur les broches 9 et 10.
  *
  * Quand une paire est montee face a face, ses deux servomoteurs doivent
  * tourner en sens contraire pour entrainer la charge dans le meme sens : le
@@ -41,30 +40,25 @@
 // dimensionnee a environ 1 A par servomoteur en charge. Alimentes par la
 // broche 5V de l'Arduino, ils tremblent des qu'ils forcent et font redemarrer
 // la carte.
-const byte MOVEMENT_COUNT      = 2;
+const byte MOVEMENT_COUNT      = 1;
+const byte SERVOS_PER_MOVEMENT = 2;
 
-// Nombre de servomoteurs par mouvement. A porter a 2 lorsque les paires seront
-// montees de part et d'autre du mecanisme ; il faudra alors ajouter la seconde
-// broche a chaque ligne de MOVEMENT_PINS ci-dessous.
-const byte SERVOS_PER_MOVEMENT = 1;
-
-// Un mouvement par ligne, dans l'ordre des voies : la premiere ligne est le
-// mouvement 1. Doit correspondre a BuildChannels() dans MainWindow.xaml.cs.
+// Un mouvement par ligne : la premiere ligne est le mouvement 1. Doit
+// correspondre a BuildChannels() dans MainWindow.xaml.cs.
 //
-//   mouvement 1, broche  9 : ORIENTATION - pivotement de la fleche
-//   mouvement 2, broche 10 : LEVAGE      - montee et descente de la charge
+//   mouvement 1, broches 9 et 10 : LEVAGE - montee et descente de la charge
 //
-// En passant a deux servomoteurs : { 9, 10 } et { 11, 3 } par exemple.
+// L'orientation de la fleche sera ajoutee ici en deuxieme ligne, avec ses
+// propres broches, en portant MOVEMENT_COUNT a 2.
 const byte MOVEMENT_PINS[MOVEMENT_COUNT][SERVOS_PER_MOVEMENT] = {
-  {  9 },
-  { 10 },
+  { 9, 10 },
 };
 
-// Sens de montage de chaque paire. Sans effet tant qu'il n'y a qu'un
-// servomoteur par mouvement ; a partir de deux, true signifie montes face a
-// face, donc commandes en sens contraire. Passer a false une paire finalement
-// montee dans le meme sens : ses servomoteurs recevront la meme consigne.
-const bool MOVEMENT_MIRRORED[MOVEMENT_COUNT] = { true, true };
+// Sens de montage de chaque paire. true = servomoteurs montes face a face,
+// donc commandes en sens contraire : le second recoit l'angle en miroir du
+// premier. Passer a false une paire montee dans le meme sens, auquel cas ses
+// deux servomoteurs recevront la meme consigne.
+const bool MOVEMENT_MIRRORED[MOVEMENT_COUNT] = { true };
 
 // Debattement reellement exploitable. En dessous de 15 et au dessus de 165 la
 // plupart des servomoteurs arrivent en butee mecanique : ils forcent, chauffent
@@ -107,6 +101,16 @@ void setup() {
     }
     currentAngle[i] = ANGLE_INIT;
     applyMovement(i, ANGLE_INIT);
+  }
+
+  // La ligne serie n'est pas stable pendant le redemarrage de la carte, et
+  // surtout dans les secondes qui suivent un televersement : le recepteur
+  // interprete alors du bruit comme des caracteres. Observe en essai, cela
+  // suffisait a composer un nombre valide et donc a deplacer les servomoteurs
+  // tout seuls au demarrage. On jette ce qui est arrive avant d'ecouter.
+  delay(100);
+  while (Serial.available() > 0) {
+    Serial.read();
   }
 
   Serial.print("READY ");

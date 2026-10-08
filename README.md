@@ -28,8 +28,8 @@ La maquette de gestion de la grue nécessite le matériel suivant :
 * Un plateau de support Arduino-servomoteur-seringues,
 * Le système piston-poussoir en plastique PLA,
 * Une carte Arduino Uno,
-* Un servomoteur par mouvement de la grue, soit deux pour l'orientation et le
-  levage (le code est prévu pour passer à deux par mouvement),
+* Deux servomoteurs par mouvement de la grue, montés de part et d'autre du
+  mécanisme, soit deux pour le levage du montage actuel,
 * Une alimentation 5–6 V capable de fournir **au moins 2 A** (bloc secteur ;
   comptez environ 1 A par servomoteur en charge),
 * Une ”Breadboard”,
@@ -66,30 +66,44 @@ stop** des deux côtés.
 Chaque **mouvement** de la grue est numéroté à partir de 1 et porte le nom de
 la fonction qu'il commande :
 
-| Mouvement | Broche | Nom | Sens |
+| Mouvement | Broches | Nom | Sens |
 |---|---|---|---|
-| 1 | 9 | **Orientation** | pivotement de la flèche, gauche ↔ droite |
-| 2 | 10 | **Levage** | montée et descente de la charge, haut ↕ bas |
+| 1 | 9 et 10 | **Levage** | montée et descente de la charge, haut ↕ bas |
 
-Le montage actuel compte **un servomoteur par mouvement**.
+Le montage actuel ne comporte **qu'un seul mouvement**, le levage, entraîné par
+**deux servomoteurs** montés de part et d'autre du mécanisme. L'orientation de
+la flèche s'ajoutera plus tard comme second mouvement.
 
-Si les deux mouvements sont câblés dans l'autre sens, échangez les deux blocs
-de `BuildChannels()` dans [MainWindow.xaml.cs](./Seminaire_FISA-A3_servomotor-controller/MainWindow.xaml.cs)
-et le commentaire correspondant dans le sketch : il n'y a rien d'autre à
-modifier, ni dans le code, ni dans l'interface.
+### Messages échangés
+
+| Sens | Message | Signification |
+|---|---|---|
+| IHM → carte | `S1:120\n` | met le mouvement 1 à 120° |
+| IHM → carte | `120\n` | angle seul : s'applique au mouvement 1 |
+| carte → IHM | `READY 1 2` | carte initialisée : 1 mouvement, 2 servomoteurs |
+| carte → IHM | `OK 1 120` | consigne appliquée sur le mouvement 1 |
+| carte → IHM | `ERR S2:90` | ligne invalide (mouvement inconnu, angle non numérique…), ignorée |
+
+La carte ne répond **que lorsqu'une consigne change réellement**. Un même angle
+renvoyé deux fois reste sans réponse : c'est volontaire, l'accusé systématique
+saturait le tampon d'émission de 64 octets de la carte.
+
+Au démarrage, la carte purge son tampon de réception avant d'écouter. Sans
+cela, le bruit de la ligne série pendant le redémarrage suffit à composer un
+nombre valide, et les servomoteurs partent tout seuls — observé en essai.
 
 ### Positions nommées
 L'interface ne demande jamais de raisonner en degrés. Chaque mouvement déclare
 ses positions remarquables, qui servent à la fois d'état affiché et de boutons
 de rappel :
 
-| Angle | Orientation | Levage |
-|---|---|---|
-| 15° | Entièrement à gauche | Entièrement descendu |
-| 52° | Orientée à gauche | Charge basse |
-| 90° | Flèche centrée | Charge à mi-hauteur |
-| 128° | Orientée à droite | Charge haute |
-| 165° | Entièrement à droite | Entièrement monté |
+| Angle | Levage |
+|---|---|
+| 15° | Entièrement descendu |
+| 52° | Charge basse |
+| 90° | Charge à mi-hauteur |
+| 128° | Charge haute |
+| 165° | Entièrement monté |
 
 L'état affiché est la position **la plus proche** de l'angle courant : les
 frontières tombent à mi-chemin entre deux repères, ce qui évite d'annoncer
@@ -99,27 +113,7 @@ exact et le pourcentage de course restent affichés en dessous, en petit.
 Ces positions se déclarent dans `BuildChannels()`. En ajouter une suffit à
 créer son bouton de rappel : il n'y a pas de XAML à toucher.
 
-| Sens | Message | Signification |
-|---|---|---|
-| IHM → carte | `S2:120\n` | met la voie 2 à 120° |
-| IHM → carte | `120\n` | angle seul : s'applique à la voie 1 |
-| carte → IHM | `READY 2 2` | carte initialisée : 2 mouvements, 2 servomoteurs |
-| carte → IHM | `OK 2 120` | consigne appliquée sur le mouvement 2 |
-| carte → IHM | `ERR S5:90` | ligne invalide (mouvement inconnu, angle non numérique…), ignorée |
-
-La carte ne répond **que lorsqu'une consigne change réellement**. Un même angle
-renvoyé deux fois reste sans réponse : c'est volontaire, l'accusé systématique
-saturait le tampon d'émission de 64 octets de la carte.
-
-### Passer à deux servomoteurs par mouvement
-Le code est déjà prévu pour des paires montées de part et d'autre du
-mécanisme. Trois modifications suffisent :
-
-1. `SERVOS_PER_MOVEMENT` à `2` dans le sketch ;
-2. la seconde broche ajoutée à chaque ligne de `MOVEMENT_PINS`, par exemple
-   `{ 9, 10 }` et `{ 11, 3 }` ;
-3. la seconde broche ajoutée à chaque `pins:` de `BuildChannels()` côté IHM.
-
+### Paires montées en opposition
 Montés face à face, les deux servomoteurs d'une paire doivent tourner **en sens
 contraire** pour entraîner la charge dans le même sens : le second reçoit donc
 l'angle en **miroir** du premier (15° ↔ 165°, 90° reste 90°). Leur donner la
@@ -133,16 +127,25 @@ les deux servomoteurs dans la même instruction. Si l'IHM les pilotait
 séparément, le tourniquet d'émission les décalerait de 50 ms et les deux
 moitiés d'une paire se combattraient à chaque déplacement du curseur.
 
-### Nombre de mouvements
-Il est fixé à **2** et se change à deux endroits, qui doivent rester cohérents :
+### Ajouter un mouvement
+Le nombre de mouvements est fixé à **1**. Pour ajouter l'orientation, trois
+modifications, qui doivent rester cohérentes entre elles :
+
+1. `MOVEMENT_COUNT` à `2` dans le sketch ;
+2. une seconde ligne dans `MOVEMENT_PINS` avec ses broches, et une seconde
+   entrée dans `MOVEMENT_MIRRORED` ;
+3. un second bloc dans `BuildChannels()` côté IHM, avec ses propres positions
+   nommées.
+
+L'interface crée son bandeau et ses boutons de rappel toute seule : il n'y a
+pas de XAML à toucher. Les déclarations concernées :
 
 | Fichier | Déclaration |
 |---|---|
 | [Arduino_servomotor_controller.ino](./Arduino_servomotor_controller.ino) | `MOVEMENT_COUNT`, `MOVEMENT_PINS` et `MOVEMENT_MIRRORED` |
-| [MainWindow.xaml.cs](./Seminaire_FISA-A3_servomotor-controller/MainWindow.xaml.cs) | `ServoDefinitions` (broche, nom du mouvement, sens) |
+| [MainWindow.xaml.cs](./Seminaire_FISA-A3_servomotor-controller/MainWindow.xaml.cs) | `BuildChannels()` (broches, miroir, nom, positions) |
 
-L'IHM construit automatiquement un curseur par voie : il n'y a pas de XAML à
-retoucher. La bibliothèque `Servo` gère jusqu'à douze servomoteurs sur une Uno,
+La bibliothèque `Servo` gère jusqu'à douze servomoteurs sur une Uno,
 mais **l'alimentation limite bien avant** : comptez environ 1 A par microservo
 en charge.
 

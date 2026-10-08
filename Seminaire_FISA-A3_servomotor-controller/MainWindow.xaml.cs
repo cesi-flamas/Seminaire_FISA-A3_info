@@ -15,14 +15,15 @@ namespace ServoMotorControl
         // à la carte — premier bloc = mouvement 1 — et doit correspondre à
         // MOVEMENT_PINS dans le sketch Arduino.
         //
-        // Le montage actuel compte UN servomoteur par mouvement. Pour passer à
-        // deux, montés de part et d'autre du mécanisme, ajouter la seconde
-        // broche ici et porter SERVOS_PER_MOVEMENT à 2 dans le sketch.
+        // Le montage actuel ne comporte qu'un mouvement, le levage, entraîné
+        // par DEUX servomoteurs sur les broches 9 et 10. L'orientation de la
+        // flèche s'ajoutera ici en second bloc, avec ses propres broches, en
+        // portant MOVEMENT_COUNT à 2 dans le sketch.
         //
-        // L'IHM n'émet de toute façon qu'une consigne par mouvement : c'est la
-        // carte qui en déduira l'angle miroir du second servomoteur, afin que
-        // les deux moitiés d'une paire bougent dans la même instruction plutôt
-        // qu'à 50 ms d'intervalle.
+        // L'IHM n'émet qu'une consigne par mouvement : c'est la carte qui en
+        // déduit l'angle miroir du second servomoteur, afin que les deux
+        // moitiés d'une paire bougent dans la même instruction plutôt qu'à
+        // 50 ms d'intervalle.
         //
         // Les positions remarquables sont nommées en langage métier : c'est
         // ce que lit le technicien, l'angle n'est qu'une précision.
@@ -30,22 +31,7 @@ namespace ServoMotorControl
         {
             yield return new ServoChannel(
                 number: 1,
-                pins: [9],
-                mirrored: true,
-                role: "Orientation",
-                movement: "Pivotement de la flèche, de la gauche vers la droite",
-                positions:
-                [
-                    new ServoPosition(15,  "Entièrement à gauche", "Gauche max"),
-                    new ServoPosition(52,  "Orientée à gauche",    "Gauche"),
-                    new ServoPosition(90,  "Flèche centrée",       "Centre"),
-                    new ServoPosition(128, "Orientée à droite",    "Droite"),
-                    new ServoPosition(165, "Entièrement à droite", "Droite max"),
-                ]);
-
-            yield return new ServoChannel(
-                number: 2,
-                pins: [10],
+                pins: [9, 10],
                 mirrored: true,
                 role: "Levage",
                 movement: "Montée et descente de la charge, du bas vers le haut",
@@ -330,7 +316,7 @@ namespace ServoMotorControl
             int newline;
             while ((newline = content.IndexOf('\n')) >= 0)
             {
-                string line = content[..newline].Trim();
+                string line = Sanitize(content[..newline]);
                 content = content[(newline + 1)..];
 
                 if (line.Length > 0)
@@ -339,6 +325,28 @@ namespace ServoMotorControl
 
             _receiveBuffer.Clear();
             _receiveBuffer.Append(content);
+        }
+
+        /// <summary>
+        /// Ne conserve que les caractères imprimables d'une ligne reçue.
+        ///
+        /// Au redémarrage de la carte — et surtout dans les secondes qui
+        /// suivent un téléversement — la liaison livre des octets parasites :
+        /// la ligne série n'est pas encore stable et le récepteur interprète du
+        /// bruit comme des caractères, y compris des NUL et d'autres caractères
+        /// de contrôle. Recopiés tels quels dans le journal, ils polluent le
+        /// TextBlock qui l'affiche. On les écarte avant toute interprétation.
+        /// </summary>
+        private static string Sanitize(string raw)
+        {
+            var kept = new StringBuilder(raw.Length);
+            foreach (char c in raw)
+            {
+                if (!char.IsControl(c))
+                    kept.Append(c);
+            }
+
+            return kept.ToString().Trim();
         }
 
         /// <summary>
