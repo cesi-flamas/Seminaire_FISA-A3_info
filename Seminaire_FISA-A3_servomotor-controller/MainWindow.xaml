@@ -5,6 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ServoMotorControl"
         mc:Ignorable="d"
+        PreviewKeyDown="MainWindow_KeyDown"
+        PreviewKeyUp="MainWindow_KeyUp"
         Title="Contrôle ServoMotor Arduino"  Height="300" Width="400" Background="Black">
     <Grid Margin="20">
         <Grid.RowDefinitions>
@@ -81,7 +83,7 @@
 
         <!-- Slider Angle -->
         <TextBlock Grid.Row="3" Grid.Column="0" Text="Angle (°):" VerticalAlignment="Center"/>
-        <Slider x:Name="angleSlider" Grid.Row="3" Grid.ColumnSpan="2" Minimum="5" Maximum="120" Value="60" Width="150" Margin="10,0,0,0" ValueChanged="AngleSlider_ValueChanged" HorizontalAlignment="Center">
+        <Slider x:Name="angleSlider" TickFrequency="5" TickPlacement="Both" Grid.Row="3" Grid.ColumnSpan="2" Minimum="5" Maximum="120" Value="60" Width="150" Margin="10,0,0,0" ValueChanged="AngleSlider_ValueChanged" HorizontalAlignment="Center">
             <!-- Redéfinition de l'apparence du Slider -->
             <Slider.Template>
                 <ControlTemplate TargetType="Slider">
@@ -111,6 +113,6 @@
         </Slider>
 
         <!-- Affichage Angle -->
-        <TextBlock x:Name="angleTextBlock" Grid.Row="4" Grid.ColumnSpan="2" Text="Angle actuel: 90°" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="Yellow"/>
+        <TextBlock x:Name="angleTextBlock" Grid.Row="4" Grid.ColumnSpan="2" Text="Angle actuel: 60°" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="Yellow"/>
     </Grid>
 </Window>

@@ -2,7 +2,8 @@
 using System.Windows;
 using System.Collections.Generic;
 using System.Threading;
-
+using System.Windows.Input;
+using System.Windows.Threading;
 
 namespace ServoMotorControl
 {
@@ -13,12 +14,30 @@ namespace ServoMotorControl
         List<int> angles = new List<int>();
         int angle2;
         bool state;
+        bool rightPressed = false;
+        bool leftPressed = false;
+        bool upPressed = false;
+        bool downPressed = false;
+        private DispatcherTimer holdTimer;
 
 
         public MainWindow()
         {
             InitializeComponent();
             LoadComPorts();
+
+            // Timer qui répète le changement d'angle tant qu'une flèche est maintenue
+            holdTimer = new DispatcherTimer();
+            holdTimer.Interval = TimeSpan.FromMilliseconds(100); // 1 pas toutes les 100 ms (10°/s)
+            holdTimer.Tick += (s, e) => StepAngle();
+
+            // Si la fenêtre perd le focus pendant qu'une flèche est maintenue, le KeyUp n'arrive jamais :
+            // on remet tout à zéro pour que le servo ne continue pas de tourner tout seul
+            Deactivated += (s, e) =>
+            {
+                upPressed = downPressed = rightPressed = leftPressed = false;
+                holdTimer.Stop();
+            };
         }
 
         private void LoadComPorts()
@@ -113,6 +132,59 @@ namespace ServoMotorControl
             if (_serialPort != null && _serialPort.IsOpen)
                 _serialPort.Close();
             base.OnClosed(e);
+        }
+
+        // Calcule le sens à partir des flèches maintenues et déplace le slider d'1°
+        // (+1 avec Haut/Droite, -1 avec Bas/Gauche, 0 si les deux sens sont appuyés)
+        private void StepAngle()
+        {
+            int direction = 0;
+            if (upPressed || rightPressed) direction += 1 * (int)angleSlider.TickFrequency;
+            if (downPressed || leftPressed) direction -= 1 * (int)angleSlider.TickFrequency;
+
+            // Math.Clamp empêche de sortir des bornes du slider (0 à 120)
+            angleSlider.Value = Math.Clamp(angleSlider.Value + direction, angleSlider.Minimum, angleSlider.Maximum);
+        }
+
+        // Appui sur une flèche : on mémorise la touche, on fait un pas tout de suite,
+        // puis le timer prend le relais tant que la touche reste enfoncée
+        private void MainWindow_KeyDown(object sender, KeyEventArgs e)
+        {
+            switch (e.Key)
+            {
+                case Key.Up:    upPressed = true;    break;
+                case Key.Down:  downPressed = true;  break;
+                case Key.Right: rightPressed = true; break;
+                case Key.Left:  leftPressed = true;  break;
+                default: return; // autre touche : on ne fait rien
+            }
+
+            // Empêche la ComboBox (changement de port COM) ou le slider de réagir aussi à la flèche
+            e.Handled = true;
+
+            // Windows renvoie KeyDown en boucle quand on maintient une touche (IsRepeat = true) :
+            // on l'ignore, c'est le timer qui gère la répétition à vitesse régulière
+            if (e.IsRepeat) return;
+
+            StepAngle();        // un appui court = 1 pas
+            holdTimer.Start();  // maintien = répétition
+        }
+
+        // Relâchement d'une flèche : on l'oublie, et on arrête le timer si plus aucune n'est appuyée
+        private void MainWindow_KeyUp(object sender, KeyEventArgs e)
+        {
+            switch (e.Key)
+            {
+                case Key.Up:    upPressed = false;    break;
+                case Key.Down:  downPressed = false;  break;
+                case Key.Right: rightPressed = false; break;
+                case Key.Left:  leftPressed = false;  break;
+                default: return;
+            }
+            e.Handled = true;
+
+            if (!upPressed && !downPressed && !rightPressed && !leftPressed)
+                holdTimer.Stop();
         }
     }
 }
