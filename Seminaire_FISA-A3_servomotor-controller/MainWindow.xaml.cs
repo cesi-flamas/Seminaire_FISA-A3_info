@@ -1,16 +1,28 @@
-﻿using System.IO.Ports;
+using System.IO.Ports;
 using System.Windows;
+using System.Windows.Input;
 
 namespace ServoMotorControl
 {
     public partial class MainWindow : Window
     {
-        public SerialPort _serialPort;
+        private SerialPort? _serialPort;
 
         public MainWindow()
         {
             InitializeComponent();
             LoadComPorts();
+        }
+
+        private void Window_Arrow_Key(object? sender, KeyEventArgs e)
+        {
+            angleSlider.Value = e.Key switch
+            {
+                Key.Up => Math.Min(angleSlider.Maximum, angleSlider.Value + angleSlider.TickFrequency),
+                Key.Down => Math.Max(angleSlider.Minimum, angleSlider.Value - angleSlider.TickFrequency),
+                _ => angleSlider.Value
+            };
+            e.Handled = true;
         }
 
         private void LoadComPorts()
@@ -58,10 +70,10 @@ namespace ServoMotorControl
 
         private void AngleSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
+            int angle = (int)angleSlider.Value;
+            angleTextBlock.Text = $"Angle actuel: {angle}°";
             if (_serialPort != null && _serialPort.IsOpen)
             {
-                int angle = (int)angleSlider.Value;
-                angleTextBlock.Text = $"Angle actuel: {angle}°";
                 _serialPort.WriteLine(angle.ToString());
             }
         }
