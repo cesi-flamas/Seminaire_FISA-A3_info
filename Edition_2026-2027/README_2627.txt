@@ -1,0 +1,1 @@
+Il est demandé aux promotions des Séminaires d'intégration en FISA de créer un folder associé à leur projet et d'y rajouter une photo de leur grue (avec le système Arduino) ainsi que tout fichier 3D ou fichier de code qui aura été nécessaire pour la réalisation de leur projet.
