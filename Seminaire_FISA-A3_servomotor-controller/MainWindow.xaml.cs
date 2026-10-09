@@ -14,6 +14,7 @@ namespace ServoMotorControl
         int angle2;
         bool state;
 
+
         public MainWindow()
         {
             InitializeComponent();
@@ -23,8 +24,11 @@ namespace ServoMotorControl
         private void LoadComPorts()
         {
             comPortComboBox.ItemsSource = SerialPort.GetPortNames();
-            if (comPortComboBox.Items.Count > 0)
-                comPortComboBox.SelectedIndex = 0;
+            if (comPortComboBox.Items.Count = 0) {
+                comPortComboBox.ItemsSource = null;
+                comPortComboBox.Items.Add("Aucun Port COM");
+            }
+            comPortComboBox.SelectedIndex = 0;
         }
 
         private void ConnectButton_Click(object sender, RoutedEventArgs e)
@@ -38,7 +42,7 @@ namespace ServoMotorControl
             }
             else
             {
-                if (comPortComboBox.SelectedItem == null)
+                if (comPortComboBox.SelectedItem == null || (string)comPortComboBox.SelectedValue == "Aucun Port COM")
                 {
                     MessageBox.Show("Veuillez sélectionner un port COM.");
                     return;
