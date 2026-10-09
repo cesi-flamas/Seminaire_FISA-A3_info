@@ -1,0 +1,32 @@
+# ------------------------------------------------------------------
+# Fichiers générés par la compilation ou par les outils installés sur
+# la machine. Ils ne doivent PAS être versionnés : ils sont recréés à
+# chaque "dotnet build" et diffèrent d'un poste à l'autre.
+# ------------------------------------------------------------------
+
+# Sorties de compilation .NET (recréées par dotnet build)
+bin/
+obj/
+
+# Visual Studio : cache, index, disposition des fenêtres
+.vs/
+
+# Préférences personnelles de projet
+*.user
+*.suo
+
+# VS Code : on garde la configuration partagée, on ignore le reste
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/extensions.json
+
+# Arduino : binaires compilés et dossiers temporaires
+build/
+*.hex
+*.elf
+
+# Windows / OneDrive
+Thumbs.db
+desktop.ini
