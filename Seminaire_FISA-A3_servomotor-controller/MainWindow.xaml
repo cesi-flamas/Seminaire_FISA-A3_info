@@ -81,7 +81,7 @@
 
         <!-- Slider Angle -->
         <TextBlock Grid.Row="3" Grid.Column="0" Text="Angle (°):" VerticalAlignment="Center"/>
-        <Slider x:Name="angleSlider" Grid.Row="3" Grid.ColumnSpan="2" Minimum="0" Maximum="180" Value="90" Width="150" Margin="10,0,0,0" ValueChanged="AngleSlider_ValueChanged" HorizontalAlignment="Center">
+        <Slider x:Name="angleSlider" Grid.Row="3" Grid.ColumnSpan="2" Minimum="5" Maximum="120" Value="60" Width="150" Margin="10,0,0,0" ValueChanged="AngleSlider_ValueChanged" HorizontalAlignment="Center">
             <!-- Redéfinition de l'apparence du Slider -->
             <Slider.Template>
                 <ControlTemplate TargetType="Slider">

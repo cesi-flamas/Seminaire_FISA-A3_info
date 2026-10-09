@@ -24,7 +24,7 @@ namespace ServoMotorControl
         private void LoadComPorts()
         {
             comPortComboBox.ItemsSource = SerialPort.GetPortNames();
-            if (comPortComboBox.Items.Count = 0) {
+            if (comPortComboBox.Items.Count == 0) {
                 comPortComboBox.ItemsSource = null;
                 comPortComboBox.Items.Add("Aucun Port COM");
             }
