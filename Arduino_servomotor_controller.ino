@@ -1,7 +1,7 @@
 #include <Servo.h>
 
 Servo myServo;  // Create servo object
-const int servoPin = 9; // Servo connected to pin 9
+const int servoPin = 9; // Servo connected to pin 93
 
 void setup() {
   Serial.begin(9600); // Start serial communication
@@ -11,12 +11,15 @@ void setup() {
 void loop() {
   if (Serial.available() > 0) {
     String angleStr = Serial.readStringUntil('\n'); // Read angle as string
+    if(angleStr.startsWith("angle")){
+      Serial.println(myServo.read());
+    }
+    else {
     int angle = angleStr.toInt(); // Convert to integer
-
     // Constrain angle to valid servo range (0-180)
-    angle = constrain(angle, 15, 165);
+    angle = constrain(angle, 0, 180);
     myServo.write(angle); // Move servo to the angle
-    Serial.print("Servo moved to: ");
-    Serial.println(angle);
+    }
+    
   }
 }
